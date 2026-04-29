@@ -17,6 +17,11 @@ pub fn run() {
         .manage(RecordingState::default())
         .manage(HttpClient(reqwest::Client::new()))
         .setup(|app| {
+            // Show main window on startup.
+            if let Some(win) = app.get_webview_window("main") {
+                win.show().ok();
+            }
+
             // Position the pill at the bottom-centre of the primary monitor.
             if let Some(pill) = app.get_webview_window("pill") {
                 if let Ok(Some(monitor)) = app.primary_monitor() {

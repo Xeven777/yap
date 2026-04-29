@@ -6,16 +6,17 @@
   type Status = "idle" | "recording" | "transcribing" | "done" | "error";
 
   let status: Status = $state("idle");
-  const win = getCurrentWebviewWindow();
 
-  const label: Record<Exclude<Status, "idle">, string> = {
-    recording: "Recording…",
-    transcribing: "Transcribing…",
-    done: "Done ✓",
+  const labels: Record<Status, string> = {
+    idle: "",
+    recording: "Recording",
+    transcribing: "Transcribing",
+    done: "Done",
     error: "Error",
   };
 
   onMount(async () => {
+    const win = getCurrentWebviewWindow();
     await listen<Status>("yap://state", async (e) => {
       status = e.payload;
       if (status === "idle") {
@@ -27,51 +28,77 @@
   });
 </script>
 
-{#if status !== "idle"}
-  <div class="pill {status}">
-    <span class="dot"></span>
-    <span class="text">{label[status]}</span>
-  </div>
-{/if}
+<div class="pill {status}">
+  <span class="dot"></span>
+  <span class="text">{labels[status]}</span>
+</div>
 
 <style>
   .pill {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    padding: 10px 18px;
-    border-radius: 999px;
-    background: #1e1e2e;
-    color: #fff;
-    font-family: system-ui, -apple-system, sans-serif;
+    gap: 7px;
+    padding: 14px;
+    height: 36px;
+    background: rgba(26, 26, 28, 0.96);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    color: rgba(255, 255, 255, 0.88);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     font-size: 13px;
     font-weight: 500;
-    white-space: nowrap;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    transition: background 0.2s ease;
+    letter-spacing: -0.1px;
     user-select: none;
+    white-space: nowrap;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.5),
+      0 1px 4px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: background 0.2s ease, border-color 0.2s ease;
   }
 
-  .pill.recording    { background: #7f1d1d; }
-  .pill.transcribing { background: #1e3a5f; }
-  .pill.done         { background: #14532d; }
-  .pill.error        { background: #7f1d1d; }
+  .pill.recording {
+    background: rgba(50, 14, 14, 0.97);
+    border-color: rgba(255, 69, 58, 0.25);
+  }
+  .pill.transcribing {
+    background: rgba(12, 24, 52, 0.97);
+    border-color: rgba(10, 132, 255, 0.25);
+  }
+  .pill.done {
+    background: rgba(12, 36, 22, 0.97);
+    border-color: rgba(48, 209, 88, 0.25);
+  }
+  .pill.error {
+    background: rgba(50, 14, 14, 0.97);
+    border-color: rgba(255, 69, 58, 0.25);
+  }
 
   .dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.25);
     flex-shrink: 0;
   }
 
   .recording .dot {
-    background: #f87171;
-    animation: pulse 0.9s ease-in-out infinite;
+    background: #FF453A;
+    animation: pulse 1s ease-in-out infinite;
+  }
+  .transcribing .dot {
+    background: #0A84FF;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .done .dot {
+    background: #30D158;
+  }
+  .error .dot {
+    background: #FF453A;
   }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.3; transform: scale(0.85); }
+    50%       { opacity: 0.35; transform: scale(0.75); }
   }
 </style>

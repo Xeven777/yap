@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Yap",
-        "width": 520,
-        "height": 460,
+        "width": 420,
+        "height": 380,
         "resizable": true,
         "fullscreen": false,
         "visible": false
@@ -24,15 +24,14 @@
         "label": "pill",
         "url": "pill.html",
         "title": "",
-        "width": 300,
-        "height": 52,
+        "width": 200,
+        "height": 44,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "resizable": false,
-        "visible": false,
-        "shadow": false
+        "visible": false
       }
     ],
     "security": {
