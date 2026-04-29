@@ -12,11 +12,27 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Yap",
         "width": 520,
-        "height": 420,
+        "height": 460,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "visible": false
+      },
+      {
+        "label": "pill",
+        "url": "pill.html",
+        "title": "",
+        "width": 300,
+        "height": 52,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "resizable": false,
+        "visible": false,
+        "shadow": false
       }
     ],
     "security": {

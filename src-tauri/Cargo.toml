@@ -21,3 +21,14 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["multipart", "json"] }
 cpal = "0.15"
 hound = "3"
+
+# Cross-platform keyboard injection (Windows + macOS)
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+enigo = "0.2"
+
+[profile.release]
+lto = true
+opt-level = "z"
+strip = true
+codegen-units = 1
+panic = "abort"
