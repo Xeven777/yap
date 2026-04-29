@@ -17,10 +17,15 @@ Hotkey (press)              Hotkey (press again)
  at 16 kHz mono                   ↓
                            VAD trims silence
                                   ↓
-                           resample → 16 kHz WAV
+                           resample → 16 kHz
                                   ↓
-                           POST to Groq API
-                           (whisper-large-v3-turbo)
+                     ┌────────────┴────────────┐
+                  Groq backend           Local backend
+                  (cloud)                (offline)
+                     ↓                        ↓
+              POST WAV to Groq        whisper-rs runs
+              whisper-large-v3-turbo  selected GGML model
+                     └────────────┬────────────┘
                                   ↓
                            transcript → clipboard
                                   ↓
@@ -35,12 +40,12 @@ The pill overlay (transparent, always-on-top) updates in real time via Tauri eve
 ## Prerequisites
 
 ### All platforms
-- [Rust](https://rustup.rs) stable toolchain (`rustup` + `cargo`)
+- [Rust](https://rustup.rs) stable toolchain — install with `rustup`
 - [Node.js](https://nodejs.org) v18+
-- [pnpm](https://pnpm.io) — install with `npm i -g pnpm`
-- A [Groq API key](https://console.groq.com) — free tier, very generous limits
+- [pnpm](https://pnpm.io) — `npm i -g pnpm`
 
 ### Linux (Debian / Ubuntu / MX Linux)
+
 ```bash
 sudo apt-get install -y \
   pkg-config \
@@ -50,22 +55,40 @@ sudo apt-get install -y \
   libgtk-3-dev \
   libssl-dev \
   libasound2-dev \
-  xdotool          # X11 paste
-  # or: ydotool   # Wayland paste (also needs ydotoold daemon running)
+  cmake \
+  libclang-dev \
+  xdotool
+  # or: ydotool   # Wayland paste (also needs ydotoold daemon)
 ```
+
+> `cmake` and `libclang-dev` are required to compile `whisper.cpp` (the local Whisper backend) from source. `xdotool` is for X11 paste injection.
 
 ### Windows
-No extra system deps. Paste injection uses the `enigo` crate (no `xdotool` needed).
+
+Install the [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **Desktop development with C++** workload — this provides MSVC, CMake, and the Windows SDK.
+
+```powershell
+# Or install via winget:
+winget install Microsoft.VisualStudio.2022.BuildTools
+winget install Kitware.CMake
+winget install LLVM.LLVM   # provides libclang for bindgen
+```
+
+After installing LLVM, set the env var so bindgen can find it:
+```powershell
+[System.Environment]::SetEnvironmentVariable("LIBCLANG_PATH", "C:\Program Files\LLVM\bin", "User")
+```
 
 ### macOS
+
 ```bash
-xcode-select --install   # if not already installed
+xcode-select --install        # Xcode command-line tools (clang, make)
+brew install cmake            # CMake for building whisper.cpp
 ```
-Paste injection uses `enigo` with `Cmd+V` automatically.
 
 ---
 
-## Setup
+## Setup & run
 
 ```bash
 # 1. Clone
@@ -75,13 +98,42 @@ cd yap
 # 2. Install JS dependencies
 pnpm install
 
-# 3. Run in development mode (hot-reload on both Rust and Svelte changes)
+# 3. Dev mode — hot-reload on both Rust and Svelte changes
 pnpm tauri dev
 ```
 
-The app starts in the **system tray** — look for the Yap icon. Click it to open Settings.
+The app starts in the **system tray**. Click the tray icon to open the settings window.
 
-On first launch, click the tray icon → **Settings**, paste your Groq API key (`gsk_...`), and click **Save**.
+---
+
+## First launch
+
+### Using Groq (cloud, default)
+
+1. Get a free API key at [console.groq.com](https://console.groq.com)
+2. Open Settings (tray icon or **⚙** button) → paste key → **Save**
+
+### Using Local Whisper (offline)
+
+1. Open Settings → switch backend to **Local Whisper**
+2. Pick a model and click **Download** — models are fetched from HuggingFace
+
+| Model | Size | Notes |
+|-------|------|-------|
+| Tiny (Q5) | 31 MB | Fastest; good for quick phrases |
+| Base | 142 MB | Balanced speed and accuracy |
+| Small (Q5) | 181 MB | Better accuracy, still fast |
+| Small | 466 MB | Full-precision small model |
+| **Large Turbo (Q5)** | **547 MB** | **Recommended — same arch as Groq, quantized** |
+| Large Turbo | 874 MB | Full-precision, highest quality |
+
+3. Once downloaded, select the model and click **Save**
+4. The model is cached in memory after first use so subsequent transcriptions are fast
+
+Model files are stored in the app data directory:
+- Linux: `~/.local/share/com.yap.app/models/`
+- Windows: `%APPDATA%\com.yap.app\models\`
+- macOS: `~/Library/Application Support/com.yap.app/models/`
 
 ---
 
@@ -111,7 +163,9 @@ Open via tray icon or the **⚙** button in the main window.
 
 | Setting | Description |
 |---------|-------------|
+| Backend | **Groq** (cloud, needs API key) or **Local Whisper** (offline, needs a downloaded model) |
 | Groq API Key | Your `gsk_...` key from console.groq.com |
+| Model | Which downloaded GGML model to use for local transcription |
 | Hotkey | Any combo recognised by your OS — e.g. `Ctrl+Shift+D`, `Alt+Space` |
 | Language | ISO code (`en`, `fr`, `de`…) — skips auto-detect, saves ~100 ms. Leave blank for auto. |
 
@@ -133,10 +187,17 @@ Output is in `src-tauri/target/release/bundle/`:
 | Platform | Output |
 |----------|--------|
 | Linux | `.deb` + `.AppImage` |
-| Windows | `.msi` + `.exe` |
+| Windows | `.msi` + `.exe` (NSIS installer) |
 | macOS | `.dmg` + `.app` |
 
 The release profile uses LTO + dead-code stripping (`opt-level = "z"`, `strip = true`) to keep the binary small.
+
+### Cross-compilation notes
+
+Tauri does not support cross-compilation out of the box — build on the target OS. For CI, use:
+- Linux: Ubuntu 22.04+ runner
+- Windows: `windows-latest` runner
+- macOS: `macos-latest` runner (arm64) or `macos-13` (x86_64)
 
 ---
 
@@ -147,7 +208,7 @@ yap/
 ├── index.html                  # Main window entry
 ├── pill.html                   # Overlay window entry
 ├── src/
-│   ├── App.svelte              # Main UI — settings, hotkey wiring, event emission
+│   ├── App.svelte              # Main UI — settings, hotkey, backend/model selector
 │   ├── Pill.svelte             # Floating overlay — listens for yap://state events
 │   ├── main.ts                 # Svelte mount for main window
 │   ├── pill.ts                 # Svelte mount for pill window
@@ -173,8 +234,9 @@ yap/
 |---|---|
 | `tauri 2` | Native window, IPC bridge, system tray |
 | `cpal 0.15` | Cross-platform audio capture (ALSA / PipeWire / WASAPI / CoreAudio) |
-| `hound 3` | Encode raw PCM → WAV |
-| `reqwest 0.12` | HTTP client for Groq API (connection pool reused across requests) |
+| `hound 3` | Encode raw PCM → WAV (Groq path) |
+| `reqwest 0.12` | HTTP client for Groq API + model downloads |
+| `whisper-rs 0.14` | Rust bindings to whisper.cpp for local offline transcription |
 | `tauri-plugin-global-shortcut` | System-wide configurable hotkey |
 | `tauri-plugin-clipboard-manager` | Write transcript to clipboard |
 | `enigo 0.2` | Keyboard injection on Windows + macOS |
@@ -185,12 +247,12 @@ yap/
 
 ## Audio pipeline detail
 
-1. **Capture** — `cpal` opens the default input device at 16 kHz mono. If the device doesn't support 16 kHz, the native rate is used and the samples are resampled afterward via linear interpolation.
-2. **Noise gate** — Samples below 0.5% amplitude are zeroed during capture to cut background hiss before it reaches the buffer.
-3. **VAD trim** — After recording stops, silence is trimmed from both ends of the buffer (threshold 1%, 150 ms padding). Whisper gets clean speech edges.
-4. **Resample** — If captured at a rate other than 16 kHz, the buffer is resampled to 16 kHz using linear interpolation.
-5. **WAV encode** — `hound` writes a 16-bit signed PCM WAV to `/tmp/yap_recording.wav`.
-6. **Transcribe** — `reqwest` POSTs the WAV to Groq's `/v1/audio/transcriptions` endpoint. The HTTP client is shared (connection pool persists across requests).
+1. **Capture** — `cpal` opens the default input device at 16 kHz mono. Falls back to native rate + resamples afterward.
+2. **Noise gate** — Samples below 0.5% amplitude are zeroed during capture to cut background hiss.
+3. **VAD trim** — After recording stops, silence is trimmed from both ends (threshold 1%, 150 ms padding).
+4. **Resample** — Linear interpolation to 16 kHz if the device captured at a different rate.
+5. **Transcribe (Groq)** — `hound` writes a 16-bit PCM WAV to `/tmp/yap_recording.wav`; `reqwest` POSTs it to Groq's `/v1/audio/transcriptions`.
+6. **Transcribe (Local)** — Raw `f32` samples are passed directly to `whisper-rs` (no WAV write). The `WhisperContext` is cached in memory so the model loads only once per session. Inference runs in a `spawn_blocking` thread to avoid blocking the async runtime.
 
 ---
 
@@ -200,10 +262,10 @@ yap/
 It starts in the system tray. Look for the Yap icon in your taskbar/tray area.
 
 **Hotkey not registering**
-Another app may have claimed the combo. Change it in Settings to something unused — e.g. `Ctrl+Shift+D` or `Alt+F9`.
+Another app may have claimed the combo. Change it in Settings — e.g. `Ctrl+Shift+D` or `Alt+F9`.
 
 **Pill overlay not showing**
-Make sure the main window is running (not crashed). Check the terminal for `[yap]` log lines.
+Make sure the main window is running. Check the terminal for `[yap]` log lines.
 
 **No audio / "No input device"**
 Run `arecord -l` (Linux) to list capture devices. Ensure PipeWire or PulseAudio is running: `systemctl --user status pipewire`.
@@ -214,11 +276,41 @@ sudo apt-get install xdotool
 ```
 
 **Wayland paste not working**
-Install `ydotool` and start the daemon:
 ```bash
 sudo apt-get install ydotool
 sudo ydotoold &
 ```
+
+**Build fails: `Unable to find libclang`**
+```bash
+# Linux
+sudo apt-get install libclang-dev
+
+# macOS
+brew install llvm
+export LIBCLANG_PATH="$(brew --prefix llvm)/lib"
+
+# Windows — install LLVM from https://releases.llvm.org and set:
+# LIBCLANG_PATH=C:\Program Files\LLVM\bin
+```
+
+**Build fails: `cmake not found`**
+```bash
+# Linux
+sudo apt-get install cmake
+
+# macOS
+brew install cmake
+
+# Windows
+winget install Kitware.CMake
+```
+
+**Local model download stuck / slow**
+HuggingFace occasionally rate-limits. Click Cancel and retry. Large models (547 MB+) take a few minutes on a typical connection.
+
+**Local transcription is slow on first use**
+The model is being loaded from disk into memory — this is a one-time cost per session. Subsequent transcriptions use the cached context and are much faster.
 
 **Groq 401 error**
 API key is wrong or expired. Generate a new one at [console.groq.com](https://console.groq.com).
@@ -230,8 +322,7 @@ Recording was very long. The free tier accepts up to 25 MB (~25 min at 16 kHz). 
 
 ## Remaining optimisations
 
-- [ ] **Streaming transcription** — pipe audio chunks in real time; visible latency drops significantly
-- [ ] **Local Whisper fallback** — bundle `whisper.cpp` via `whisper-rs` for offline use
+- [ ] **Streaming transcription** — pipe audio chunks to a WebSocket ASR service; partial transcript visible while speaking
 - [ ] **OS keychain for API key** — use the `keyring` crate instead of a plaintext config file
 - [ ] **Auto-start on login** — `tauri-plugin-autostart`
 - [ ] **Transcript history** — store last N transcripts with timestamps via `tauri-plugin-store`

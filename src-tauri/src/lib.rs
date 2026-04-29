@@ -1,5 +1,5 @@
 mod commands;
-pub use commands::{HttpClient, RecordingState};
+pub use commands::{HttpClient, LocalWhisperState, RecordingState};
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -16,23 +16,21 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::default().build())
         .manage(RecordingState::default())
         .manage(HttpClient(reqwest::Client::new()))
+        .manage(LocalWhisperState::default())
         .setup(|app| {
-            // Show main window on startup.
             if let Some(win) = app.get_webview_window("main") {
                 win.show().ok();
             }
 
-            // Position the pill at the bottom-centre of the primary monitor.
             if let Some(pill) = app.get_webview_window("pill") {
                 if let Ok(Some(monitor)) = app.primary_monitor() {
                     let sz = monitor.size();
-                    let x = sz.width as i32 / 2 - 150; // 300 / 2
+                    let x = sz.width as i32 / 2 - 150;
                     let y = sz.height as i32 - 100;
                     pill.set_position(PhysicalPosition::new(x, y)).ok();
                 }
             }
 
-            // System tray
             let settings_item =
                 MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let quit_item =
@@ -57,7 +55,6 @@ pub fn run() {
 
             Ok(())
         })
-        // Close main window → hide to tray instead of quitting.
         .on_window_event(|win, event| {
             if win.label() == "main" {
                 if let WindowEvent::CloseRequested { api, .. } = event {
@@ -76,6 +73,14 @@ pub fn run() {
             commands::save_hotkey,
             commands::get_language,
             commands::save_language,
+            commands::get_backend,
+            commands::save_backend,
+            commands::get_active_model,
+            commands::save_active_model,
+            commands::list_models,
+            commands::download_model,
+            commands::cancel_download,
+            commands::delete_model,
         ])
         .run(tauri::generate_context!())
         .expect("error running yap");

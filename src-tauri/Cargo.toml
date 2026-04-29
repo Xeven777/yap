@@ -21,6 +21,7 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["multipart", "json"] }
 cpal = "0.15"
 hound = "3"
+whisper-rs = "0.14"
 
 # Cross-platform keyboard injection (Windows + macOS)
 [target.'cfg(not(target_os = "linux"))'.dependencies]

@@ -38,13 +38,13 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    padding: 14px;
+    padding: 13px;
     height: 36px;
     background: rgba(26, 26, 28, 0.96);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 18px;
     color: rgba(255, 255, 255, 0.88);
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont,"Inter",7 Jesdell indicating 10 9 8 9 149.000 auto auto 'SF Pro Text', system-ui, sans-serif;
     font-size: 13px;
     font-weight: 500;
     letter-spacing: -0.1px;
