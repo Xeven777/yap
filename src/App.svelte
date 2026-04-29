@@ -5,6 +5,26 @@
   import { register, unregister } from "@tauri-apps/plugin-global-shortcut";
   import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
   import { onMount, onDestroy } from "svelte";
+  import {
+    Mic,
+    Settings,
+    Minus,
+    Cloud,
+    HardDrive,
+    Globe,
+    Keyboard,
+    KeyRound,
+    Sparkles,
+    Download,
+    Trash2,
+    X,
+    Check,
+    LoaderCircle,
+    TriangleAlert,
+    CircleCheck,
+    CircleAlert,
+    ArrowLeft,
+  } from "@lucide/svelte";
   import "./app.css";
 
   type Status = "idle" | "recording" | "transcribing" | "done" | "error";
@@ -29,11 +49,10 @@
   let apiKey = $state("");
   let language = $state("");
   let hotkey = $state("Ctrl+Shift+Space");
-  let activeHotkey = "";
+  let activeHotkey = $state("");
   let showSettings = $state(false);
   let errorMsg = $state("");
 
-  // Backend state
   let backend = $state("groq");
   let activeModel = $state("ggml-large-v3-turbo-q5_0");
   let models: ModelStatus[] = $state([]);
@@ -51,11 +70,19 @@
   });
 
   let statusLabel = $derived<Record<Status, string>>({
-    idle: `${activeHotkey || hotkey} to record`,
-    recording: "Recording… press again to stop",
-    transcribing: backend === "local" ? "Transcribing locally…" : "Transcribing…",
+    idle: "Ready",
+    recording: "Recording",
+    transcribing: backend === "local" ? "Transcribing locally" : "Transcribing",
     done: "Copied to clipboard",
-    error: "Error",
+    error: "Something went wrong",
+  });
+
+  let statusSubtitle = $derived<Record<Status, string>>({
+    idle: `Press ${activeHotkey || hotkey} to start`,
+    recording: "Press the hotkey again to stop",
+    transcribing: "Just a moment…",
+    done: "Pasted into the focused field",
+    error: errorMsg || "Try again",
   });
 
   async function shortcutHandler(event: { state: string }) {
@@ -84,7 +111,6 @@
       errorMsg = `Shortcut failed: ${e}`;
     }
 
-    // Download event listeners
     unlistenProgress = await listen<DownloadProgressEvent>("download_progress", (e) => {
       downloadingModelId = e.payload.model_id;
       downloadProgress = { downloaded: e.payload.downloaded, total: e.payload.total };
@@ -174,15 +200,11 @@
     try {
       await invoke("download_model", { modelId });
     } catch (e) {
-      if (String(e) !== "Cancelled") {
-        downloadError = String(e);
-      }
+      if (String(e) !== "Cancelled") downloadError = String(e);
     }
   }
 
-  async function cancelDownload() {
-    await invoke("cancel_download");
-  }
+  async function cancelDownload() { await invoke("cancel_download"); }
 
   async function deleteModel(modelId: string) {
     await invoke("delete_model", { modelId });
@@ -206,110 +228,196 @@
   let activeModelDownloaded = $derived(
     models.find((m) => m.id === activeModel)?.downloaded ?? false
   );
-
   let localReady = $derived(backend === "local" && activeModelDownloaded);
   let groqReady = $derived(backend === "groq" && !!apiKey);
   let canRecord = $derived(localReady || groqReady);
+
+  function formatHotkey(s: string): string[] {
+    return s.split("+").map((p) => p.trim()).filter(Boolean);
+  }
 </script>
 
 <main>
-  <div class="status-row {status}">
-    <span class="dot"></span>
-    <span class="label">{statusLabel[status]}</span>
-    <div class="actions">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <Mic size={14} strokeWidth={2.4} />
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">Yap</span>
+        <span class="brand-sub">Voice → text</span>
+      </div>
+    </div>
+    <div class="topbar-actions">
       <button
-        class="icon-btn {showSettings ? 'active' : ''}"
+        class="icon-btn {showSettings ? 'is-active' : ''}"
         onclick={() => (showSettings = !showSettings)}
         title="Settings"
+        aria-label="Settings"
       >
-        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-          <path d="M7.5 9.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="currentColor"/>
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M6.07 1.27a1.5 1.5 0 0 1 1.86 0l.7.57a.5.5 0 0 0 .45.09l.87-.25a1.5 1.5 0 0 1 1.61.8l.38.8a.5.5 0 0 0 .36.28l.88.16a1.5 1.5 0 0 1 1.22 1.46v.88a.5.5 0 0 0 .18.38l.67.56a1.5 1.5 0 0 1 .32 1.9l-.47.76a.5.5 0 0 0-.04.46l.35.83a1.5 1.5 0 0 1-.64 1.84l-.78.44a.5.5 0 0 0-.26.4l-.07.9a1.5 1.5 0 0 1-1.44 1.37l-.9-.02a.5.5 0 0 0-.43.22l-.5.74a1.5 1.5 0 0 1-1.86.42l-.8-.4a.5.5 0 0 0-.46 0l-.8.4a1.5 1.5 0 0 1-1.86-.42l-.5-.74a.5.5 0 0 0-.43-.22l-.9.02A1.5 1.5 0 0 1 .94 12.3l-.07-.9a.5.5 0 0 0-.26-.4l-.78-.44a1.5 1.5 0 0 1-.64-1.84l.35-.83a.5.5 0 0 0-.04-.46l-.47-.76a1.5 1.5 0 0 1 .32-1.9l.67-.56A.5.5 0 0 0 .2 4.83v-.88A1.5 1.5 0 0 1 1.42 2.5l.88-.16a.5.5 0 0 0 .36-.28l.38-.8a1.5 1.5 0 0 1 1.61-.8l.87.25a.5.5 0 0 0 .45-.09l.7-.57zm.93 1.23-.7.57a1.5 1.5 0 0 1-1.35.27l-.87-.25-.38.8a1.5 1.5 0 0 1-1.09.84l-.88.16v.88a1.5 1.5 0 0 1-.54 1.16l-.67.56.47.76a1.5 1.5 0 0 1 .13 1.38l-.35.83.78.44a1.5 1.5 0 0 1 .77 1.2l.07.9.9-.02a1.5 1.5 0 0 1 1.28.66l.5.74.8-.4a1.5 1.5 0 0 1 1.38 0l.8.4.5-.74a1.5 1.5 0 0 1 1.28-.66l.9.02.07-.9a1.5 1.5 0 0 1 .77-1.2l.78-.44-.35-.83a1.5 1.5 0 0 1 .13-1.38l.47-.76-.67-.56A1.5 1.5 0 0 1 13.8 6.8v-.88l-.88-.16a1.5 1.5 0 0 1-1.09-.84l-.38-.8-.87.25a1.5 1.5 0 0 1-1.35-.27l-.7-.57z" fill="currentColor"/>
-        </svg>
+        {#if showSettings}
+          <ArrowLeft size={15} strokeWidth={2} />
+        {:else}
+          <Settings size={15} strokeWidth={2} />
+        {/if}
       </button>
-      <button class="icon-btn" onclick={() => win?.hide()} title="Hide to tray">
-        <svg width="12" height="2" viewBox="0 0 12 2" fill="none">
-          <rect x="0" y="0" width="12" height="2" rx="1" fill="currentColor"/>
-        </svg>
+      <button
+        class="icon-btn"
+        onclick={() => win?.hide()}
+        title="Hide to tray"
+        aria-label="Hide"
+      >
+        <Minus size={15} strokeWidth={2.4} />
       </button>
     </div>
-  </div>
+  </header>
 
-  {#if !canRecord && !showSettings}
-    <div class="notice">
-      <span class="notice-icon">⚠</span>
-      {#if backend === "groq"}
-        Add your Groq API key in settings to get started
-      {:else}
-        Download a model in Settings → Local Whisper to use offline mode
+  {#if !showSettings}
+    <section class="hero {status}" class:disabled={!canRecord} class:idle={status === 'idle'}>
+      <div class="hero-glow"></div>
+
+      <div class="hero-icon">
+        {#if status === "recording"}
+          <div class="wave">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        {:else if status === "transcribing"}
+          <LoaderCircle size={26} strokeWidth={2.2} class="spin" />
+        {:else if status === "done"}
+          <CircleCheck size={26} strokeWidth={2} />
+        {:else if status === "error"}
+          <CircleAlert size={26} strokeWidth={2} />
+        {:else}
+          <Mic size={26} strokeWidth={2} />
+        {/if}
+      </div>
+
+      <div class="hero-text">
+        <div class="hero-title">{statusLabel[status]}</div>
+        <div class="hero-sub">{statusSubtitle[status]}</div>
+      </div>
+
+      {#if status === "idle" && activeHotkey}
+        <div class="kbd-row">
+          {#each formatHotkey(activeHotkey) as key, i}
+            {#if i > 0}<span class="kbd-plus">+</span>{/if}
+            <kbd>{key}</kbd>
+          {/each}
+        </div>
       {/if}
-    </div>
-  {/if}
+    </section>
 
-  {#if transcript && !showSettings}
-    <div class="transcript">{transcript}</div>
-  {/if}
+    {#if !canRecord}
+      <div class="notice">
+        <div class="notice-icon"><TriangleAlert size={14} strokeWidth={2.2} /></div>
+        <div class="notice-body">
+          {#if backend === "groq"}
+            <strong>Groq API key required.</strong>
+            <span>Add one in Settings to start transcribing.</span>
+          {:else}
+            <strong>No model downloaded.</strong>
+            <span>Open Settings → Local Whisper to grab one.</span>
+          {/if}
+        </div>
+        <button class="notice-cta" onclick={() => (showSettings = true)}>
+          Open
+        </button>
+      </div>
+    {/if}
 
-  {#if errorMsg}
-    <p class="err">{errorMsg}</p>
-  {/if}
+    {#if transcript}
+      <div class="transcript">
+        <div class="transcript-head">
+          <span class="transcript-label">Last transcript</span>
+          <span class="transcript-meta">{transcript.length} chars</span>
+        </div>
+        <div class="transcript-body">{transcript}</div>
+      </div>
+    {/if}
 
-  {#if showSettings}
-    <div class="settings">
-      <div class="settings-title">Settings</div>
-
-      <!-- Backend selector -->
-      <div class="field">
-        <label>Backend</label>
-        <div class="backend-toggle">
+    {#if errorMsg && status === "error"}
+      <div class="err">
+        <CircleAlert size={13} strokeWidth={2.2} />
+        <span>{errorMsg}</span>
+      </div>
+    {/if}
+  {:else}
+    <section class="settings">
+      <div class="setting-block">
+        <div class="block-head">
+          <span class="block-title">Backend</span>
+          <span class="block-hint">Where audio gets transcribed</span>
+        </div>
+        <div class="segmented">
           <button
-            class="toggle-btn {backend === 'groq' ? 'active' : ''}"
+            class="seg-btn {backend === 'groq' ? 'is-active' : ''}"
             onclick={() => (backend = "groq")}
           >
-            Groq (Cloud)
+            <Cloud size={14} strokeWidth={2} />
+            <span>Groq</span>
+            <em>cloud</em>
           </button>
           <button
-            class="toggle-btn {backend === 'local' ? 'active' : ''}"
+            class="seg-btn {backend === 'local' ? 'is-active' : ''}"
             onclick={() => (backend = "local")}
           >
-            Local Whisper
+            <HardDrive size={14} strokeWidth={2} />
+            <span>Whisper</span>
+            <em>local</em>
           </button>
         </div>
       </div>
 
       {#if backend === "groq"}
-        <!-- Groq settings -->
-        <div class="field">
-          <label for="apikey">Groq API Key</label>
-          <input id="apikey" type="password" bind:value={apiKey} placeholder="gsk_…" autocomplete="off" />
+        <div class="setting-block">
+          <div class="block-head">
+            <span class="block-title"><KeyRound size={12} strokeWidth={2.2} /> Groq API key</span>
+            <a class="block-link" href="https://console.groq.com/keys" target="_blank" rel="noreferrer">Get one ↗</a>
+          </div>
+          <input
+            type="password"
+            bind:value={apiKey}
+            placeholder="gsk_…"
+            autocomplete="off"
+            class="input"
+          />
         </div>
       {:else}
-        <!-- Local Whisper model manager -->
-        <div class="model-section">
-          <div class="model-section-header">
-            <span class="model-section-title">Models</span>
-            <span class="model-section-hint">Downloaded to app data folder</span>
+        <div class="setting-block">
+          <div class="block-head">
+            <span class="block-title"><Sparkles size={12} strokeWidth={2.2} /> Models</span>
+            <span class="block-hint">Stored in app data folder</span>
           </div>
 
           {#if downloadError}
-            <p class="err" style="margin: 0 0 8px">{downloadError}</p>
+            <div class="err">
+              <CircleAlert size={13} strokeWidth={2.2} />
+              <span>{downloadError}</span>
+            </div>
           {/if}
 
           <div class="model-list">
             {#each models as model (model.id)}
               {@const isDownloading = downloadingModelId === model.id}
               {@const isActive = activeModel === model.id}
-              <div class="model-card {isActive && model.downloaded ? 'model-active' : ''}">
+              <div class="model-card" class:is-active={isActive && model.downloaded} class:is-downloading={isDownloading}>
                 <div class="model-info">
                   <div class="model-name-row">
                     <span class="model-name">{model.label}</span>
                     {#if model.recommended}
-                      <span class="badge-recommended">★ Recommended</span>
+                      <span class="badge badge-recommended" title="Recommended">
+                        <Sparkles size={9} strokeWidth={2.4} /> Best
+                      </span>
                     {/if}
-                    {#if model.downloaded}
-                      <span class="badge-downloaded">Downloaded</span>
+                    {#if isActive && model.downloaded}
+                      <span class="badge badge-active">
+                        <Check size={9} strokeWidth={3} /> In use
+                      </span>
+                    {:else if model.downloaded}
+                      <span class="badge badge-ready">Ready</span>
                     {/if}
                   </div>
+                  <div class="model-meta">{formatBytes(model.size_bytes)}</div>
 
                   {#if isDownloading && downloadProgress}
                     <div class="progress-wrap">
@@ -320,8 +428,8 @@
                         ></div>
                       </div>
                       <span class="progress-label">
-                        {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
-                        ({progressPct(downloadProgress.downloaded, downloadProgress.total)}%)
+                        {progressPct(downloadProgress.downloaded, downloadProgress.total)}%
+                        · {formatBytes(downloadProgress.downloaded)} / {formatBytes(downloadProgress.total)}
                       </span>
                     </div>
                   {/if}
@@ -329,28 +437,31 @@
 
                 <div class="model-actions">
                   {#if isDownloading}
-                    <button class="btn-danger-sm" onclick={cancelDownload}>Cancel</button>
+                    <button class="btn btn-danger" onclick={cancelDownload}>
+                      <X size={11} strokeWidth={2.4} />
+                      Cancel
+                    </button>
                   {:else if model.downloaded}
-                    {#if isActive}
-                      <span class="badge-in-use">In use</span>
-                    {:else}
-                      <button class="btn-ghost-sm" onclick={() => (activeModel = model.id)}>Use</button>
+                    {#if !isActive}
+                      <button class="btn btn-primary-sm" onclick={() => (activeModel = model.id)}>
+                        Use
+                      </button>
                     {/if}
                     <button
-                      class="btn-ghost-sm btn-delete"
+                      class="btn btn-icon btn-delete"
                       onclick={() => deleteModel(model.id)}
                       title="Delete model"
+                      aria-label="Delete model"
                     >
-                      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
-                        <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                      </svg>
+                      <Trash2 size={12} strokeWidth={2} />
                     </button>
                   {:else}
                     <button
-                      class="btn-ghost-sm"
+                      class="btn btn-ghost"
                       onclick={() => startDownload(model.id)}
                       disabled={!!downloadingModelId}
                     >
+                      <Download size={11} strokeWidth={2.2} />
                       Download
                     </button>
                   {/if}
@@ -361,383 +472,637 @@
         </div>
       {/if}
 
-      <!-- Language (shared) -->
-      <div class="field">
-        <label for="lang">
-          Language
-          <span class="hint">blank = auto-detect</span>
-        </label>
-        <input id="lang" type="text" bind:value={language} placeholder="en, fr, de…" maxlength="5" />
+      <div class="setting-block">
+        <div class="block-head">
+          <span class="block-title"><Globe size={12} strokeWidth={2.2} /> Language</span>
+          <span class="block-hint">Blank = auto-detect</span>
+        </div>
+        <input
+          type="text"
+          bind:value={language}
+          placeholder="en, fr, de…"
+          maxlength="5"
+          class="input"
+        />
       </div>
 
-      <!-- Hotkey (shared) -->
-      <div class="field">
-        <label for="hotkey">
-          Hotkey
-          <span class="hint">e.g. Ctrl+Shift+Space</span>
-        </label>
-        <input id="hotkey" type="text" bind:value={hotkey} placeholder="Ctrl+Shift+Space" />
+      <div class="setting-block">
+        <div class="block-head">
+          <span class="block-title"><Keyboard size={12} strokeWidth={2.2} /> Hotkey</span>
+          <span class="block-hint">Global shortcut</span>
+        </div>
+        <input
+          type="text"
+          bind:value={hotkey}
+          placeholder="Ctrl+Shift+Space"
+          class="input"
+        />
       </div>
 
       <div class="settings-actions">
-        <button class="btn-secondary" onclick={() => (showSettings = false)}>Cancel</button>
-        <button class="btn-primary" onclick={saveSettings}>Save</button>
+        <button class="btn btn-secondary" onclick={() => (showSettings = false)}>Cancel</button>
+        <button class="btn btn-primary" onclick={saveSettings}>
+          <Check size={13} strokeWidth={2.4} />
+          Save changes
+        </button>
       </div>
-    </div>
+    </section>
   {/if}
 
-  <p class="tray-hint">Closing this window hides it to the system tray</p>
+  <footer class="tray-hint">Closing this window hides Yap to the system tray</footer>
 </main>
 
 <style>
+  :global(:root) {
+    --font-sans: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-mono: 'Geist Mono', 'SF Mono', ui-monospace, Menlo, monospace;
+    --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
   :global(html, body) {
     margin: 0;
     padding: 0;
-    background: #111113;
+    background:
+      radial-gradient(1200px 600px at 0% -10%, rgba(10, 132, 255, 0.10), transparent 60%),
+      radial-gradient(900px 500px at 110% 110%, rgba(191, 90, 242, 0.07), transparent 60%),
+      #0c0c0f;
     color: #f5f5f7;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    font-family: var(--font-sans);
+    font-feature-settings: 'ss01', 'cv11';
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     height: 100%;
   }
 
   main {
-    padding: 14px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
     min-height: 100vh;
+    animation: appEnter 0.5s var(--ease-out-quint);
   }
 
-  .status-row {
+  @keyframes appEnter {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
     display: flex;
     align-items: center;
-    gap: 9px;
-    padding: 9px 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 11px;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    justify-content: space-between;
+    padding: 2px 4px 0;
   }
-  .status-row.recording {
-    background: rgba(50, 14, 14, 0.7);
-    border-color: rgba(255, 69, 58, 0.2);
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand-mark {
+    width: 26px; height: 26px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(140deg, #0A84FF, #5E5CE6);
+    color: white;
+    box-shadow:
+      0 4px 12px rgba(10, 132, 255, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
   }
-  .status-row.transcribing {
-    background: rgba(12, 24, 52, 0.7);
-    border-color: rgba(10, 132, 255, 0.2);
+  .brand-text { display: flex; flex-direction: column; line-height: 1; }
+  .brand-name {
+    font-size: 17px;
+    font-weight: 400;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.95);
+    letter-spacing: -0.3px;
+    line-height: 1;
   }
-  .status-row.done {
-    background: rgba(12, 36, 22, 0.7);
-    border-color: rgba(48, 209, 88, 0.2);
+  .brand-sub {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.32);
+    margin-top: 3px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
   }
-
-  .dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    flex-shrink: 0;
-    transition: background 0.2s ease;
-  }
-  .recording .dot { background: #FF453A; animation: pulse 1s ease-in-out infinite; }
-  .transcribing .dot { background: #0A84FF; animation: pulse 1.2s ease-in-out infinite; }
-  .done .dot { background: #30D158; }
-  .error .dot { background: #FF453A; }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50%       { opacity: 0.35; transform: scale(0.75); }
-  }
-
-  .label {
-    flex: 1;
-    font-size: 13px;
-    font-weight: 450;
-    color: rgba(255, 255, 255, 0.72);
-    letter-spacing: -0.1px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .actions {
-    display: flex;
-    gap: 2px;
-    flex-shrink: 0;
-  }
+  .topbar-actions { display: flex; gap: 4px; }
 
   .icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    width: 26px;
-    height: 26px;
-    border-radius: 7px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.3);
-    transition: background 0.15s, color 0.15s;
-  }
-  .icon-btn:hover { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.75); }
-  .icon-btn.active { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.8); }
-
-  .notice {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 9px 12px;
-    background: rgba(255, 159, 10, 0.08);
-    border: 1px solid rgba(255, 159, 10, 0.2);
-    border-radius: 10px;
-    font-size: 12.5px;
-    color: rgba(255, 200, 80, 0.9);
-    line-height: 1.4;
-  }
-  .notice-icon { font-size: 13px; flex-shrink: 0; }
-
-  .transcript {
-    padding: 11px 13px;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    border-radius: 11px;
-    font-size: 13.5px;
-    line-height: 1.6;
-    color: rgba(255, 255, 255, 0.82);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .err {
-    padding: 8px 12px;
-    background: rgba(255, 69, 58, 0.08);
-    border: 1px solid rgba(255, 69, 58, 0.2);
-    border-radius: 10px;
-    color: #FF6B63;
-    font-size: 12px;
-    line-height: 1.45;
-    margin: 0;
-  }
-
-  /* ---- Settings ---- */
-
-  .settings {
-    padding: 13px 14px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-height: 78vh;
-    overflow-y: auto;
-  }
-
-  .settings-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: -0.1px;
-  }
-
-  .field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .field label {
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.38);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .hint {
-    font-size: 10.5px;
-    font-weight: 400;
-    color: rgba(255, 255, 255, 0.22);
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  .field input {
-    padding: 8px 10px;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 8px;
-    color: rgba(255, 255, 255, 0.88);
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .field input:focus {
-    border-color: rgba(10, 132, 255, 0.5);
-    background: rgba(10, 132, 255, 0.05);
-  }
-  .field input::placeholder { color: rgba(255, 255, 255, 0.2); }
-
-  /* Backend toggle */
-  .backend-toggle {
-    display: flex;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 9px;
-    padding: 3px;
-  }
-
-  .toggle-btn {
-    flex: 1;
-    padding: 6px 10px;
-    border: none;
-    border-radius: 7px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.38);
-    font-size: 12.5px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-  }
-  .toggle-btn:hover { color: rgba(255, 255, 255, 0.6); }
-  .toggle-btn.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.88);
-  }
-
-  /* Model section */
-  .model-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .model-section-header {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  .model-section-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.38);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .model-section-hint {
-    font-size: 10.5px;
-    color: rgba(255, 255, 255, 0.2);
-  }
-
-  .model-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .model-card {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 9px 10px;
-    background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 9px;
-    transition: border-color 0.15s;
+    cursor: pointer;
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: grid; place-items: center;
+    color: rgba(255, 255, 255, 0.55);
+    transition: all 0.15s ease;
   }
-  .model-card.model-active {
-    border-color: rgba(10, 132, 255, 0.3);
-    background: rgba(10, 132, 255, 0.05);
+  .icon-btn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.95);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .icon-btn.is-active {
+    background: rgba(10, 132, 255, 0.15);
+    border-color: rgba(10, 132, 255, 0.35);
+    color: #7eb6ff;
   }
 
-  .model-info {
+  /* ---------- Hero status card ---------- */
+  .hero {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    transition:
+      border-color 0.45s var(--ease-out-quart),
+      background 0.45s var(--ease-out-quart);
+    animation: heroEnter 0.6s var(--ease-out-quint) both;
+  }
+  @keyframes heroEnter {
+    from { opacity: 0; transform: translateY(8px) scale(0.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .hero-glow {
+    position: absolute; inset: -40%;
+    background: radial-gradient(circle at 20% 30%, rgba(10, 132, 255, 0.18), transparent 55%);
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 0.3s ease, background 0.3s ease;
+  }
+  .hero.recording {
+    border-color: rgba(255, 69, 58, 0.28);
+    background: linear-gradient(180deg, rgba(60, 12, 12, 0.55), rgba(40, 8, 8, 0.25));
+  }
+  .hero.recording .hero-glow {
+    background: radial-gradient(circle at 20% 30%, rgba(255, 69, 58, 0.28), transparent 55%);
+    opacity: 1;
+    animation: heroGlow 1.6s ease-in-out infinite;
+  }
+  .hero.transcribing {
+    border-color: rgba(10, 132, 255, 0.3);
+    background: linear-gradient(180deg, rgba(10, 24, 56, 0.55), rgba(8, 16, 40, 0.25));
+  }
+  .hero.transcribing .hero-glow {
+    background: radial-gradient(circle at 20% 30%, rgba(10, 132, 255, 0.3), transparent 55%);
+    opacity: 1;
+  }
+  .hero.done {
+    border-color: rgba(48, 209, 88, 0.28);
+    background: linear-gradient(180deg, rgba(12, 44, 26, 0.55), rgba(8, 30, 18, 0.25));
+  }
+  .hero.done .hero-glow {
+    background: radial-gradient(circle at 20% 30%, rgba(48, 209, 88, 0.22), transparent 55%);
+    opacity: 1;
+  }
+  .hero.error {
+    border-color: rgba(255, 69, 58, 0.28);
+    background: linear-gradient(180deg, rgba(60, 12, 12, 0.45), rgba(40, 8, 8, 0.2));
+  }
+  .hero.disabled { opacity: 0.78; }
+
+  @keyframes heroGlow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+
+  .hero-icon {
+    position: relative;
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: grid; place-items: center;
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+  }
+  .hero.recording .hero-icon {
+    color: #FF6B63;
+    background: rgba(255, 69, 58, 0.12);
+    border-color: rgba(255, 69, 58, 0.3);
+    box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.5);
+    animation: pulseRing 1.6s ease-out infinite;
+  }
+  .hero.transcribing .hero-icon { color: #7eb6ff; background: rgba(10, 132, 255, 0.14); border-color: rgba(10, 132, 255, 0.32); }
+  .hero.done .hero-icon { color: #6BE192; background: rgba(48, 209, 88, 0.14); border-color: rgba(48, 209, 88, 0.32); }
+  .hero.error .hero-icon { color: #FF6B63; background: rgba(255, 69, 58, 0.12); border-color: rgba(255, 69, 58, 0.3); }
+
+  @keyframes pulseRing {
+    0% { box-shadow: 0 0 0 0 rgba(255, 69, 58, 0.45); }
+    100% { box-shadow: 0 0 0 14px rgba(255, 69, 58, 0); }
+  }
+
+  :global(.spin) { animation: spin 0.9s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .wave {
+    display: flex; align-items: center; gap: 3px; height: 22px;
+  }
+  .wave span {
+    width: 3px; border-radius: 2px;
+    background: #FF6B63;
+    animation: wave 1s ease-in-out infinite;
+  }
+  .wave span:nth-child(1) { height: 40%; animation-delay: -0.4s; }
+  .wave span:nth-child(2) { height: 75%; animation-delay: -0.2s; }
+  .wave span:nth-child(3) { height: 100%; animation-delay: 0s; }
+  .wave span:nth-child(4) { height: 70%; animation-delay: -0.3s; }
+  .wave span:nth-child(5) { height: 45%; animation-delay: -0.1s; }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.5); }
+    50% { transform: scaleY(1); }
+  }
+
+  .hero-text {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 2px;
+    z-index: 1;
   }
-
-  .model-name-row {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 5px;
+  .hero-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.96);
+    letter-spacing: -0.3px;
   }
-
-  .model-name {
-    font-size: 12.5px;
-    color: rgba(255, 255, 255, 0.75);
+  .hero-sub {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, 0.48);
+    letter-spacing: -0.05px;
     font-weight: 450;
   }
-
-  .badge-recommended {
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(255, 214, 10, 0.85);
-    background: rgba(255, 214, 10, 0.1);
-    border: 1px solid rgba(255, 214, 10, 0.2);
-    border-radius: 4px;
-    padding: 1px 5px;
+  .hero.idle .hero-icon {
+    animation: breathe 3.6s var(--ease-out-quint) infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.04); opacity: 0.92; }
   }
 
-  .badge-downloaded {
+  .kbd-row {
+    display: flex; align-items: center; gap: 3px;
+    z-index: 1;
+  }
+  .kbd-plus {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 10px;
+  }
+  kbd {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; height: 22px;
+    padding: 0 7px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 600;
-    color: rgba(48, 209, 88, 0.85);
-    background: rgba(48, 209, 88, 0.08);
-    border: 1px solid rgba(48, 209, 88, 0.2);
-    border-radius: 4px;
-    padding: 1px 5px;
+    color: rgba(255, 255, 255, 0.88);
+    box-shadow:
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    letter-spacing: 0;
+    transition: transform 0.18s var(--ease-out-quart), box-shadow 0.18s var(--ease-out-quart);
+    animation: kbdEnter 0.5s var(--ease-out-quint) both;
+  }
+  .kbd-row:hover kbd {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 -2px 0 rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 2px 8px rgba(0, 0, 0, 0.35);
+  }
+  .kbd-row kbd:nth-child(1) { animation-delay: 0.05s; }
+  .kbd-row kbd:nth-child(3) { animation-delay: 0.10s; }
+  .kbd-row kbd:nth-child(5) { animation-delay: 0.15s; }
+  @keyframes kbdEnter {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  .badge-in-use {
-    font-size: 10px;
-    font-weight: 600;
-    color: rgba(10, 132, 255, 0.85);
-    background: rgba(10, 132, 255, 0.1);
-    border: 1px solid rgba(10, 132, 255, 0.2);
-    border-radius: 4px;
-    padding: 1px 5px;
+  /* ---------- Notice / Error ---------- */
+  .notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background:
+      linear-gradient(180deg, rgba(255, 159, 10, 0.08), rgba(255, 159, 10, 0.04));
+    border: 1px solid rgba(255, 159, 10, 0.22);
+    border-radius: 11px;
+    font-size: 12px;
+    color: rgba(255, 220, 160, 0.95);
+    line-height: 1.4;
+    animation: noticeEnter 0.55s var(--ease-out-quint) 0.15s both;
+  }
+  @keyframes noticeEnter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .notice-icon {
+    width: 24px; height: 24px;
+    border-radius: 7px;
+    display: grid; place-items: center;
+    background: rgba(255, 159, 10, 0.14);
+    color: #FFB84D;
+    flex-shrink: 0;
+  }
+  .notice-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .notice-body strong { color: rgba(255, 232, 192, 0.98); font-weight: 600; font-size: 12px; }
+  .notice-body span { color: rgba(255, 220, 160, 0.7); font-size: 11.5px; }
+  .notice-cta {
+    background: rgba(255, 159, 10, 0.18);
+    border: 1px solid rgba(255, 159, 10, 0.3);
+    color: #FFC880;
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 11.5px; font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .notice-cta:hover { background: rgba(255, 159, 10, 0.28); }
+
+  .err {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 11px;
+    background: rgba(255, 69, 58, 0.08);
+    border: 1px solid rgba(255, 69, 58, 0.22);
+    border-radius: 9px;
+    color: #FF8B82;
+    font-size: 11.5px;
+    line-height: 1.4;
   }
 
-  /* Download progress */
-  .progress-wrap {
+  /* ---------- Transcript ---------- */
+  .transcript {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 11px 13px;
+    background: rgba(255, 255, 255, 0.035);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 11px;
+    animation: transcriptEnter 0.6s var(--ease-out-quint);
+  }
+  @keyframes transcriptEnter {
+    from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+  .transcript-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .transcript-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px; font-weight: 600;
+    color: rgba(255, 255, 255, 0.42);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  .transcript-meta {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.32);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+  .transcript-body {
+    font-size: 13px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* ---------- Settings ---------- */
+  .settings {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: 12px;
+    padding: 4px 2px;
+    overflow-y: auto;
+    max-height: calc(100vh - 80px);
+  }
+  .settings::-webkit-scrollbar { width: 6px; }
+  .settings::-webkit-scrollbar-track { background: transparent; }
+  .settings::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+  .setting-block {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 11px 12px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 11px;
+    animation: blockEnter 0.55s var(--ease-out-quint) both;
+    transition: border-color 0.2s var(--ease-out-quart), background 0.2s var(--ease-out-quart);
+  }
+  .setting-block:hover { border-color: rgba(255, 255, 255, 0.1); }
+  .setting-block:nth-of-type(1) { animation-delay: 0.02s; }
+  .setting-block:nth-of-type(2) { animation-delay: 0.07s; }
+  .setting-block:nth-of-type(3) { animation-delay: 0.12s; }
+  .setting-block:nth-of-type(4) { animation-delay: 0.17s; }
+  @keyframes blockEnter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .block-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+  }
+  .block-title {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 650;
+    color: rgba(255, 255, 255, 0.88);
+    letter-spacing: -0.05px;
+  }
+  .block-title :global(svg) { color: rgba(255, 255, 255, 0.5); }
+  .block-hint {
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.32);
+  }
+  .block-link {
+    font-size: 10.5px;
+    color: #7eb6ff;
+    text-decoration: none;
+  }
+  .block-link:hover { text-decoration: underline; }
+
+  /* Segmented control */
+  .segmented {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 9px;
+    padding: 3px;
+  }
+  .seg-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 12px;
+    font-weight: 550;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .seg-btn em {
+    font-style: normal;
+    font-size: 9.5px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.3);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .seg-btn:hover:not(.is-active) { color: rgba(255, 255, 255, 0.7); }
+  .seg-btn.is-active {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.06));
+    color: rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 1px 6px rgba(0, 0, 0, 0.3);
+  }
+  .seg-btn.is-active em { color: rgba(255, 255, 255, 0.5); }
+
+  /* Inputs */
+  .input {
+    width: 100%;
+    padding: 9px 11px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 12.5px;
+    font-family: inherit;
+    outline: none;
+    transition: all 0.15s;
+  }
+  .input:focus {
+    border-color: rgba(10, 132, 255, 0.55);
+    background: rgba(10, 132, 255, 0.06);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
+  }
+  .input::placeholder { color: rgba(255, 255, 255, 0.22); }
+
+  /* Model cards */
+  .model-list {
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .model-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 10px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 9px;
+    transition: all 0.15s;
+  }
+  .model-card {
+    animation: cardEnter 0.5s var(--ease-out-quint) both;
+  }
+  .model-card:nth-child(1) { animation-delay: 0.04s; }
+  .model-card:nth-child(2) { animation-delay: 0.09s; }
+  .model-card:nth-child(3) { animation-delay: 0.14s; }
+  .model-card:nth-child(4) { animation-delay: 0.19s; }
+  .model-card:nth-child(5) { animation-delay: 0.24s; }
+  .model-card:nth-child(6) { animation-delay: 0.29s; }
+  @keyframes cardEnter {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .model-card:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+  }
+  .model-card.is-active {
+    border-color: rgba(10, 132, 255, 0.4);
+    background: linear-gradient(180deg, rgba(10, 132, 255, 0.07), rgba(10, 132, 255, 0.02));
+  }
+  .model-card.is-downloading {
+    border-color: rgba(10, 132, 255, 0.3);
+  }
+  .model-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .model-name-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+  .model-name {
+    font-size: 12.5px; font-weight: 550;
+    color: rgba(255, 255, 255, 0.9);
+    letter-spacing: -0.1px;
+  }
+  .model-meta {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.36);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.1px;
   }
 
+  .badge {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 999px;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+  }
+  .badge-recommended {
+    color: #FFD60A;
+    background: rgba(255, 214, 10, 0.1);
+    border: 1px solid rgba(255, 214, 10, 0.25);
+  }
+  .badge-active {
+    color: #7eb6ff;
+    background: rgba(10, 132, 255, 0.14);
+    border: 1px solid rgba(10, 132, 255, 0.3);
+  }
+  .badge-ready {
+    color: #6BE192;
+    background: rgba(48, 209, 88, 0.1);
+    border: 1px solid rgba(48, 209, 88, 0.25);
+  }
+
+  .progress-wrap { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
   .progress-track {
-    height: 3px;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 2px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 99px;
     overflow: hidden;
   }
-
   .progress-fill {
     height: 100%;
-    background: #0A84FF;
-    border-radius: 2px;
+    background: linear-gradient(90deg, #0A84FF, #5E5CE6);
+    border-radius: 99px;
     transition: width 0.2s ease;
+    box-shadow: 0 0 8px rgba(10, 132, 255, 0.4);
   }
-
   .progress-label {
+    font-family: var(--font-mono);
     font-size: 10px;
-    color: rgba(255, 255, 255, 0.35);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.45);
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.1px;
   }
 
-  /* Model action buttons */
   .model-actions {
     display: flex;
     align-items: center;
@@ -745,45 +1110,88 @@
     flex-shrink: 0;
   }
 
-  .btn-ghost-sm {
-    padding: 4px 9px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 6px;
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 5px;
+    padding: 6px 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: -0.05px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
     background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.55);
-    font-size: 11.5px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.78);
   }
-  .btn-ghost-sm:hover:not(:disabled) {
+  .btn-ghost:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.1);
-    color: rgba(255, 255, 255, 0.8);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: white;
   }
-  .btn-ghost-sm:disabled { opacity: 0.35; cursor: not-allowed; }
 
-  .btn-delete {
-    padding: 4px 6px;
-    color: rgba(255, 99, 88, 0.55);
+  .btn-primary-sm {
+    background: linear-gradient(180deg, rgba(10, 132, 255, 0.85), rgba(10, 132, 255, 0.65));
+    color: white;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.15) inset, 0 2px 6px rgba(10, 132, 255, 0.25);
   }
-  .btn-delete:hover { color: #FF6B63 !important; border-color: rgba(255, 69, 58, 0.2) !important; }
+  .btn-primary-sm:hover { filter: brightness(1.1); }
 
-  .btn-danger-sm {
-    padding: 4px 9px;
-    border: 1px solid rgba(255, 69, 58, 0.2);
-    border-radius: 6px;
-    background: rgba(255, 69, 58, 0.08);
-    color: #FF6B63;
-    font-size: 11.5px;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s;
+  .btn-icon {
+    padding: 6px;
+    width: 26px; height: 26px;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.55);
   }
-  .btn-danger-sm:hover { background: rgba(255, 69, 58, 0.14); }
+  .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+  }
+  .btn-delete:hover {
+    color: #FF6B63 !important;
+    border-color: rgba(255, 69, 58, 0.3) !important;
+    background: rgba(255, 69, 58, 0.1) !important;
+  }
 
-  /* Settings footer */
+  .btn-danger {
+    background: rgba(255, 69, 58, 0.12);
+    border-color: rgba(255, 69, 58, 0.3);
+    color: #FF8B82;
+  }
+  .btn-danger:hover { background: rgba(255, 69, 58, 0.2); color: #FF6B63; }
+
+  .btn-primary {
+    padding: 9px 14px;
+    background: linear-gradient(180deg, #2196FF, #0A84FF);
+    color: white;
+    font-size: 12.5px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.18) inset,
+      0 4px 12px rgba(10, 132, 255, 0.3);
+  }
+  .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset, 0 6px 16px rgba(10, 132, 255, 0.4); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12.5px;
+  }
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
   .settings-actions {
     display: flex;
     gap: 8px;
@@ -791,27 +1199,13 @@
     padding-top: 2px;
   }
 
-  .btn-primary, .btn-secondary {
-    padding: 7px 15px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    font-family: inherit;
-    transition: opacity 0.15s;
-  }
-  .btn-primary { background: #0A84FF; color: #fff; }
-  .btn-primary:hover { opacity: 0.85; }
-  .btn-secondary { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.65); }
-  .btn-secondary:hover { background: rgba(255, 255, 255, 0.12); }
-
+  /* Footer */
   .tray-hint {
-    color: rgba(255, 255, 255, 0.16);
-    font-size: 11px;
+    color: rgba(255, 255, 255, 0.22);
+    font-size: 10.5px;
     text-align: center;
     margin-top: auto;
-    padding-top: 4px;
-    letter-spacing: -0.1px;
+    padding-top: 6px;
+    letter-spacing: 0.1px;
   }
 </style>

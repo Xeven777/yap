@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Yap — voice to text, anywhere</title>
+    <meta
+      name="description"
+      content="Press a hotkey, speak, and your words appear in whatever app is focused. Open source, runs locally or via Groq."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0b0b0d;
+        --bg-2: #111114;
+        --fg: #ededee;
+        --fg-2: #a1a1aa;
+        --fg-3: #6b6b73;
+        --line: rgba(255, 255, 255, 0.08);
+        --line-2: rgba(255, 255, 255, 0.04);
+        --accent: #ff5d3a;
+        --accent-2: #ffb199;
+        --radius: 14px;
+        --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      html { scroll-behavior: smooth; }
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        font-size: 16px;
+        line-height: 1.55;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        overflow-x: hidden;
+      }
+
+      a { color: inherit; text-decoration: none; }
+      ::selection { background: var(--accent); color: #000; }
+
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 0 28px;
+      }
+
+      /* Nav */
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 0;
+        border-bottom: 1px solid var(--line-2);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        font-size: 15px;
+        letter-spacing: -0.01em;
+      }
+      .brand-mark {
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, var(--accent), #ff8a6b);
+        position: relative;
+      }
+      .brand-mark::after {
+        content: "";
+        position: absolute;
+        inset: 6px 9px;
+        background: #0b0b0d;
+        border-radius: 2px;
+      }
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        font-size: 14px;
+        color: var(--fg-2);
+      }
+      .nav-links a:hover { color: var(--fg); }
+      .nav-cta {
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 13px;
+        color: var(--fg);
+        transition: background 120ms ease, border-color 120ms ease;
+      }
+      .nav-cta:hover { background: var(--bg-2); border-color: rgba(255,255,255,0.16); }
+
+      /* Hero */
+      .hero {
+        padding: 110px 0 90px;
+        text-align: center;
+        position: relative;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 720px; height: 480px;
+        background: radial-gradient(closest-side, rgba(255, 93, 58, 0.18), transparent 70%);
+        pointer-events: none;
+        z-index: -1;
+      }
+      .pill-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 12.5px;
+        color: var(--fg-2);
+        margin-bottom: 26px;
+        font-family: var(--mono);
+      }
+      .pill-tag .dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 0 var(--accent);
+        animation: pulse 1.8s infinite;
+      }
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 93, 58, 0.55); }
+        70% { box-shadow: 0 0 0 8px rgba(255, 93, 58, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 93, 58, 0); }
+      }
+
+      h1 {
+        font-size: clamp(40px, 6.4vw, 72px);
+        line-height: 1.02;
+        letter-spacing: -0.035em;
+        font-weight: 600;
+        margin: 0 0 22px;
+      }
+      h1 .accent {
+        background: linear-gradient(180deg, var(--accent), #ffae90);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      .lede {
+        max-width: 560px;
+        margin: 0 auto 36px;
+        color: var(--fg-2);
+        font-size: 17.5px;
+      }
+
+      .ctas {
+        display: inline-flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-size: 14.5px;
+        font-weight: 500;
+        transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+        border: 1px solid transparent;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: var(--fg);
+        color: #0b0b0d;
+      }
+      .btn-primary:hover { transform: translateY(-1px); background: #fff; }
+      .btn-ghost {
+        border-color: var(--line);
+        color: var(--fg);
+      }
+      .btn-ghost:hover { background: var(--bg-2); border-color: rgba(255,255,255,0.16); }
+      .btn svg { width: 16px; height: 16px; }
+
+      .hero-meta {
+        margin-top: 28px;
+        font-size: 13px;
+        color: var(--fg-3);
+        font-family: var(--mono);
+      }
+      .hero-meta kbd {
+        display: inline-block;
+        padding: 2px 7px;
+        border: 1px solid var(--line);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--fg);
+        background: var(--bg-2);
+        margin: 0 2px;
+      }
+
+      /* Demo / pill mock */
+      .demo {
+        margin-top: 70px;
+        display: flex;
+        justify-content: center;
+      }
+      .pill-mock {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 22px;
+        background: rgba(20, 20, 22, 0.85);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        backdrop-filter: blur(10px);
+        font-family: var(--mono);
+        font-size: 13px;
+        color: var(--fg);
+        box-shadow: 0 30px 60px -20px rgba(255, 93, 58, 0.25),
+                    0 0 0 1px rgba(255,255,255,0.03);
+      }
+      .pill-mock .rec-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #ff3b30;
+        box-shadow: 0 0 0 0 #ff3b30;
+        animation: pulse-red 1.4s infinite;
+      }
+      @keyframes pulse-red {
+        0% { box-shadow: 0 0 0 0 rgba(255,59,48,0.6); }
+        70% { box-shadow: 0 0 0 9px rgba(255,59,48,0); }
+        100% { box-shadow: 0 0 0 0 rgba(255,59,48,0); }
+      }
+
+      /* Section */
+      section.block {
+        padding: 110px 0;
+        border-top: 1px solid var(--line-2);
+      }
+      .eyebrow {
+        font-family: var(--mono);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+        margin-bottom: 14px;
+      }
+      h2 {
+        font-size: clamp(28px, 3.5vw, 40px);
+        line-height: 1.1;
+        letter-spacing: -0.025em;
+        font-weight: 600;
+        margin: 0 0 20px;
+        max-width: 640px;
+      }
+      .section-lede {
+        max-width: 600px;
+        color: var(--fg-2);
+        font-size: 16.5px;
+        margin: 0 0 56px;
+      }
+
+      /* Features grid */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .feature {
+        background: var(--bg);
+        padding: 28px 26px;
+        min-height: 200px;
+      }
+      .feature .ico {
+        width: 28px; height: 28px;
+        display: inline-flex; align-items: center; justify-content: center;
+        color: var(--accent);
+        margin-bottom: 18px;
+      }
+      .feature h3 {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin: 0 0 8px;
+      }
+      .feature p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--fg-2);
+        line-height: 1.6;
+      }
+
+      /* How it works */
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      .step {
+        padding: 22px 20px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg-2);
+        position: relative;
+      }
+      .step .num {
+        font-family: var(--mono);
+        font-size: 12px;
+        color: var(--fg-3);
+        margin-bottom: 14px;
+      }
+      .step h4 {
+        margin: 0 0 6px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .step p {
+        margin: 0;
+        font-size: 13.5px;
+        color: var(--fg-2);
+        line-height: 1.55;
+      }
+
+      /* Backends */
+      .backends {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      .backend {
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg-2);
+      }
+      .backend .badge {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--fg-3);
+        margin-bottom: 18px;
+      }
+      .backend h3 {
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin: 0 0 10px;
+      }
+      .backend p {
+        color: var(--fg-2);
+        font-size: 14.5px;
+        margin: 0 0 16px;
+      }
+      .backend ul {
+        margin: 0; padding: 0; list-style: none;
+        font-size: 13.5px;
+        color: var(--fg-2);
+      }
+      .backend li {
+        padding: 6px 0;
+        border-top: 1px solid var(--line-2);
+        display: flex; justify-content: space-between;
+        font-family: var(--mono);
+        font-size: 12.5px;
+      }
+      .backend li:first-child { border-top: 0; }
+      .backend li span:last-child { color: var(--fg); }
+
+      /* Install */
+      .code {
+        background: #08080a;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 22px 24px;
+        font-family: var(--mono);
+        font-size: 13.5px;
+        color: var(--fg);
+        overflow-x: auto;
+        line-height: 1.7;
+      }
+      .code .c-comment { color: var(--fg-3); }
+      .code .c-cmd { color: var(--accent-2); }
+
+      /* Footer */
+      footer {
+        border-top: 1px solid var(--line-2);
+        padding: 40px 0 60px;
+        color: var(--fg-3);
+        font-size: 13px;
+      }
+      .foot-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      footer a:hover { color: var(--fg); }
+
+      /* Responsive */
+      @media (max-width: 860px) {
+        .grid { grid-template-columns: 1fr; }
+        .steps { grid-template-columns: 1fr 1fr; }
+        .backends { grid-template-columns: 1fr; }
+        .nav-links a:not(.nav-cta) { display: none; }
+        section.block { padding: 80px 0; }
+        .hero { padding: 70px 0 60px; }
+      }
+      @media (max-width: 520px) {
+        .steps { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav>
+        <a href="#" class="brand">
+          <span class="brand-mark"></span>
+          <span>Yap</span>
+        </a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#how">How it works</a>
+          <a href="#install">Install</a>
+          <a class="nav-cta" href="https://github.com/xeven777/yap" target="_blank" rel="noopener">
+            GitHub ↗
+          </a>
+        </div>
+      </nav>
+    </div>
+
+    <header class="hero">
+      <div class="wrap">
+        <div class="pill-tag">
+          <span class="dot"></span>
+          Open source · Tauri 2 · Rust
+        </div>
+        <h1>
+          Press, speak, <span class="accent">paste.</span>
+        </h1>
+        <p class="lede">
+          Yap is a tiny voice-to-text dictation app for Linux, Windows, and macOS.
+          A global hotkey, a transparent floating pill, and your words land in
+          whatever app is focused.
+        </p>
+        <div class="ctas">
+          <a class="btn btn-primary" href="https://github.com/xeven777/yap" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 .5C5.73.5.5 5.74.5 12.02c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2.18c-3.2.7-3.87-1.36-3.87-1.36-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.35.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.15 1.17.91-.25 1.89-.38 2.86-.39.97.01 1.95.14 2.86.39 2.18-1.48 3.14-1.17 3.14-1.17.62 1.58.23 2.75.11 3.04.74.81 1.18 1.83 1.18 3.08 0 4.4-2.69 5.37-5.25 5.65.41.36.78 1.07.78 2.16v3.21c0 .31.21.67.8.56 4.56-1.52 7.85-5.83 7.85-10.91C23.5 5.74 18.27.5 12 .5z"/>
+            </svg>
+            View on GitHub
+          </a>
+          <a class="btn btn-ghost" href="#install">
+            Install instructions
+          </a>
+        </div>
+        <p class="hero-meta">
+          default hotkey · <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Space</kbd>
+        </p>
+
+        <div class="demo">
+          <div class="pill-mock">
+            <span class="rec-dot"></span>
+            <span>Recording…</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="block" id="features">
+      <div class="wrap">
+        <div class="eyebrow">Features</div>
+        <h2>Built to disappear into your workflow.</h2>
+        <p class="section-lede">
+          One hotkey, two transcription backends, and zero friction. Yap stays
+          in the tray and shows a transparent pill when it's listening.
+        </p>
+
+        <div class="grid">
+          <div class="feature">
+            <div class="ico">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+            </div>
+            <h3>Global hotkey dictation</h3>
+            <p>Hit your shortcut anywhere — terminal, browser, IDE, chat — speak, then hit it again. Yap pastes into the focused app.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a4 4 0 0 1-4 4H7a5 5 0 1 1 .8-9.93A6 6 0 0 1 21 15z"/></svg>
+            </div>
+            <h3>Groq cloud, instant.</h3>
+            <p>Whisper-large-v3-turbo via Groq's API. Sub-second transcription for everyday dictation. Free tier is generous.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="18" x2="6.01" y2="18"/><line x1="10" y1="18" x2="10.01" y2="18"/><path d="M6 10V6a6 6 0 0 1 12 0v4"/></svg>
+            </div>
+            <h3>Local Whisper, offline.</h3>
+            <p>Bundled whisper.cpp via whisper-rs. Pick a model from Tiny (31 MB) up to Large Turbo (874 MB). Cached in memory after first run.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <h3>Transparent pill overlay.</h3>
+            <p>A floating, always-on-top indicator that pulses red while listening, blue while transcribing, green when done. No window clutter.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+            </div>
+            <h3>VAD + noise gate.</h3>
+            <p>Silence is trimmed automatically; samples below 0.5% amplitude are zeroed. Cleaner audio in, cleaner transcripts out.</p>
+          </div>
+          <div class="feature">
+            <div class="ico">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <h3>Cross-platform native.</h3>
+            <p>Tauri 2 + Rust binary. xdotool / ydotool / enigo for keyboard injection on X11, Wayland, Windows, and macOS.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="how">
+      <div class="wrap">
+        <div class="eyebrow">How it works</div>
+        <h2>From mic to focused window in milliseconds.</h2>
+        <p class="section-lede">
+          Audio is captured at 16 kHz mono via cpal, gated, trimmed, and sent to
+          your chosen backend. The transcript is written to your clipboard and
+          pasted into whatever app has focus.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="num">01 — Capture</div>
+            <h4>Hotkey toggles cpal</h4>
+            <p>Mic recording starts at 16 kHz mono with a noise gate live on the stream.</p>
+          </div>
+          <div class="step">
+            <div class="num">02 — Clean</div>
+            <h4>VAD trims silence</h4>
+            <p>Both ends are trimmed at a 1% threshold with 150 ms padding.</p>
+          </div>
+          <div class="step">
+            <div class="num">03 — Transcribe</div>
+            <h4>Groq or local Whisper</h4>
+            <p>Either POST a WAV to Groq, or run whisper-rs in a blocking thread.</p>
+          </div>
+          <div class="step">
+            <div class="num">04 — Inject</div>
+            <h4>Clipboard + paste</h4>
+            <p>Transcript hits the clipboard, then a synthetic Ctrl+V fires.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="wrap">
+        <div class="eyebrow">Backends</div>
+        <h2>Cloud or fully offline. Your choice.</h2>
+        <p class="section-lede">
+          Switch backends anytime in Settings. Local models live in your app
+          data directory and load once per session.
+        </p>
+
+        <div class="backends">
+          <div class="backend">
+            <div class="badge">— cloud</div>
+            <h3>Groq</h3>
+            <p>whisper-large-v3-turbo, served fast. Bring your own key from console.groq.com.</p>
+            <ul>
+              <li><span>latency</span><span>sub-second</span></li>
+              <li><span>setup</span><span>paste API key</span></li>
+              <li><span>requires</span><span>internet</span></li>
+            </ul>
+          </div>
+          <div class="backend">
+            <div class="badge">— offline</div>
+            <h3>Local Whisper</h3>
+            <p>whisper.cpp via whisper-rs. Pick a GGML model that suits your machine.</p>
+            <ul>
+              <li><span>tiny (q5)</span><span>31 MB</span></li>
+              <li><span>base</span><span>142 MB</span></li>
+              <li><span>large turbo (q5)</span><span>547 MB · recommended</span></li>
+              <li><span>large turbo</span><span>874 MB</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="install">
+      <div class="wrap">
+        <div class="eyebrow">Install</div>
+        <h2>Clone, install, run.</h2>
+        <p class="section-lede">
+          Yap is built from source with Tauri. You'll need Rust, Node 18+, and
+          pnpm. Platform prerequisites are listed in the README.
+        </p>
+
+        <div class="code">
+<span class="c-comment"># 1. Clone the repo</span>
+<span class="c-cmd">git clone</span> https://github.com/xeven777/yap
+<span class="c-cmd">cd</span> yap
+
+<span class="c-comment"># 2. Install JS dependencies</span>
+<span class="c-cmd">pnpm install</span>
+
+<span class="c-comment"># 3. Run in dev mode (hot-reload Rust + Svelte)</span>
+<span class="c-cmd">pnpm tauri dev</span>
+
+<span class="c-comment"># Or build a release binary for your OS</span>
+<span class="c-cmd">pnpm tauri build</span>
+        </div>
+
+        <div style="margin-top: 28px;">
+          <a class="btn btn-primary" href="https://github.com/xeven777/yap" target="_blank" rel="noopener">
+            Get it on GitHub →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap foot-row">
+        <div class="brand">
+          <span class="brand-mark"></span>
+          <span>Yap</span>
+        </div>
+        <div>
+          <a href="https://github.com/xeven777/yap" target="_blank" rel="noopener">github.com/xeven777/yap</a>
+        </div>
+        <div>MIT · Built with Tauri, Rust &amp; Svelte</div>
+      </div>
+    </footer>
+  </body>
+</html>
