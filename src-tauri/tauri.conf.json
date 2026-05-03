@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Yap",
-        "width": 420,
-        "height": 380,
+        "width": 550,
+        "height": 650,
         "resizable": true,
         "fullscreen": false,
         "visible": false

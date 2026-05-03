@@ -45,33 +45,30 @@
     align-items: center;
     gap: 14px;
     padding: 10px 22px 10px 12px;
-    background: rgba(14, 14, 18, 0.78);
-    backdrop-filter: blur(22px) saturate(170%);
-    -webkit-backdrop-filter: blur(22px) saturate(170%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #fcf300;
+    border: 2.5px solid #231e17;
     border-radius: 999px;
-    color: rgba(255, 255, 255, 0.92);
-    font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.15px;
+    color: #231e17;
+    font-family: 'Cherry Bomb One', 'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    letter-spacing: 0.4px;
     user-select: none;
     white-space: nowrap;
     box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.55),
-      0 1px 2px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    animation: shellEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-    transition: border-color 0.25s ease, color 0.25s ease;
+      4px 4px 0 #231e17,
+      0 12px 30px rgba(35, 30, 23, 0.45);
+    animation: shellEnter 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
   }
 
   .text { display: inline-block; }
 
   /* ------------ ORB ------------ */
   .orb {
-    --hot:  #ffbf48;
-    --warm: #ff7a2a;
-    --deep: #be4a1d;
+    --hot:  #ffffff;
+    --warm: #fcf300;
+    --deep: #c9c200;
     --time: 1.6s;
 
     position: relative;
@@ -120,7 +117,7 @@
     width: 38%;
     height: 24%;
     border-radius: 50%;
-    background: radial-gradient([Motor]
+    background: radial-gradient(
       ellipse at center,
       rgba(255, 255, 255, 0.7) 0%,
       rgba(255, 255, 255, 0.15) 45%,
@@ -131,24 +128,24 @@
   }
 
   /* ------------ STATES ------------ */
-  /* recording — warm amber, breathe + jiggle */
-  .shell.recording { border-color: rgba(255, 120, 60, 0.32); color: #FFD7B0; }
+  /* recording — bright blue pop on yellow, jiggle */
+  .shell.recording { background: #058ed9; color: #fcf300; }
   .shell.recording .orb {
-    --hot: #ffd27a;
-    --warm: #ff7a2a;
-    --deep: #b8401a;
+    --hot: #ffffff;
+    --warm: #fcf300;
+    --deep: #c9c200;
     --time: 1.4s;
     animation:
       breathe var(--time) ease-in-out infinite,
       jiggle 0.55s ease-in-out infinite;
   }
 
-  /* transcribing — cool indigo/cyan, morphing blob */
-  .shell.transcribing { border-color: rgba(120, 160, 255, 0.32); color: #C4D6FF; }
+  /* transcribing — yellow with morphing blue blob */
+  .shell.transcribing { background: #fff96b; color: #231e17; }
   .shell.transcribing .orb {
-    --hot: #a8c5ff;
-    --warm: #6c7cf0;
-    --deep: #3a2bb0;
+    --hot: #5dc1f1;
+    --warm: #058ed9;
+    --deep: #034e76;
     --time: 1s;
     animation: morph 1.4s ease-in-out infinite;
   }
@@ -156,20 +153,20 @@
     animation: swirl 0.9s linear infinite;
   }
 
-  /* done — emerald, settled */
-  .shell.done { border-color: rgba(80, 220, 140, 0.34); color: #B6F0CB; }
+  /* done — solid yellow, settled */
+  .shell.done { background: #fcf300; color: #231e17; }
   .shell.done .orb {
-    --hot: #b8f0c8;
-    --warm: #4cc97a;
-    --deep: #1f7a44;
+    --hot: #ffffff;
+    --warm: #fcf300;
+    --deep: #c9c200;
     --time: 2.6s;
     animation:
       breathe var(--time) ease-in-out infinite,
-      settle 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+      settle 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   /* error — crimson flicker */
-  .shell.error { border-color: rgba(255, 80, 80, 0.42); color: #FFB4AE; }
+  .shell.error { background: #ff5b5b; color: #fcf300; }
   .shell.error .orb {
     --hot: #ffb0b0;
     --warm: #e23b3b;

@@ -1,4 +1,6 @@
+![icon](public/favicon_io/apple-touch-icon.png)
 # Yap
+
 
 Voice-to-text dictation for Linux, Windows, and macOS. Press a global hotkey, speak, press again — your words are typed into whatever app is focused. Runs silently in the system tray with a transparent floating overlay that shows recording state.
 
