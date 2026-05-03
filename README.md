@@ -2,7 +2,7 @@
 # Yap
 
 
-Voice-to-text dictation for Linux, Windows, and macOS. Press a global hotkey, speak, press again — your words are typed into whatever app is focused. Runs silently in the system tray with a transparent floating overlay that shows recording state.
+Voice-to-text dictation for Linux, Windows, and macOS. Press (or hold) a global hotkey, speak, release/press again — your words are typed into whatever app is focused. Runs silently in the system tray with a transparent floating overlay that shows recording state.
 
 Built with Tauri 2 + Rust + Svelte.
 
@@ -11,7 +11,8 @@ Built with Tauri 2 + Rust + Svelte.
 ## How it works
 
 ```
-Hotkey (press)              Hotkey (press again)
+Hotkey trigger              Hotkey trigger
+(tap or hold-down)          (tap again, or release)
       ↓                           ↓
  start recording             stop recording
       ↓                           ↓
@@ -143,13 +144,22 @@ Model files are stored in the app data directory:
 
 | Action | Result |
 |--------|--------|
-| Hotkey (default: `Ctrl+Shift+Space`) | Toggle recording on/off |
-| Hotkey pressed once | Starts recording — pill overlay appears |
-| Hotkey pressed again | Stops recording, transcribes, pastes |
+| Hotkey (default: `Ctrl+Shift+Space`) | Trigger recording — behaviour depends on mode |
+| **Tap mode** — press once | Starts recording — pill overlay appears |
+| **Tap mode** — press again | Stops recording, transcribes, pastes |
+| **Hold mode** — press and hold | Records while held (push-to-talk) |
+| **Hold mode** — release | Stops recording, transcribes, pastes |
 | Click tray icon | Show settings window |
 | Click **−** in settings window | Hide window back to tray |
 | Click **×** on settings window | Also hides to tray (does not quit) |
 | Tray right-click → Quit | Exit the app |
+
+### Tap vs Hold
+
+Pick whichever feels natural in **Settings → Hotkey**:
+
+- **Tap** — press the chord once to start, press again to stop. Best for longer dictations where you don't want to keep a finger down.
+- **Hold** — push-to-talk. Press the chord, talk while holding, release to transcribe. Best for quick phrases (Slack messages, short replies) where you don't want to think about toggling.
 
 The pill overlay (bottom-centre of screen, transparent) shows:
 - **Red + pulsing dot** — Recording
@@ -168,7 +178,8 @@ Open via tray icon or the **⚙** button in the main window.
 | Backend | **Groq** (cloud, needs API key) or **Local Whisper** (offline, needs a downloaded model) |
 | Groq API Key | Your `gsk_...` key from console.groq.com |
 | Model | Which downloaded GGML model to use for local transcription |
-| Hotkey | Any combo recognised by your OS — e.g. `Ctrl+Shift+D`, `Alt+Space` |
+| Hotkey | Click the field, then press your shortcut to capture it (e.g. `Ctrl+Shift+D`, `Alt+Space`). Any combo your OS recognises will work. |
+| Hotkey mode | **Tap** (press to toggle) or **Hold** (push-to-talk — record while held) |
 | Language | ISO code (`en`, `fr`, `de`…) — skips auto-detect, saves ~100 ms. Leave blank for auto. |
 
 Settings are saved to the OS app-config directory:
@@ -264,7 +275,10 @@ yap/
 It starts in the system tray. Look for the Yap icon in your taskbar/tray area.
 
 **Hotkey not registering**
-Another app may have claimed the combo. Change it in Settings — e.g. `Ctrl+Shift+D` or `Alt+F9`.
+Another app may have claimed the combo. Open Settings → click the hotkey field → press a different chord (e.g. `Ctrl+Shift+D` or `Alt+F9`) → Save. If the chord is rejected, the error from the OS will be shown below the hotkey field.
+
+**Hold mode releases too early / cuts off audio**
+Some keyboards repeat-fire modifier releases when other keys are pressed. If push-to-talk feels flaky, switch to **Tap** mode in Settings → Hotkey, or pick a chord that doesn't share a modifier with keys you're typing.
 
 **Pill overlay not showing**
 Make sure the main window is running. Check the terminal for `[yap]` log lines.

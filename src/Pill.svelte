@@ -10,9 +10,9 @@
   const labels: Record<Status, string> = {
     idle: "",
     recording: "Listening",
-    transcribing: "Thinking...",
-    done: "Copied",
-    error: "Error",
+    transcribing: "Thinking",
+    done: "Copied!",
+    error: "Oops",
   };
 
   onMount(async () => {
@@ -29,9 +29,9 @@
 </script>
 
 <div class="shell {status}">
-  <div class="orb">
-    <div class="core"></div>
-    <div class="glint"></div>
+  <div class="loader" aria-hidden="true">
+    <span class="ball a"></span>
+    <span class="ball b"></span>
   </div>
 
   {#if labels[status]}
@@ -41,180 +41,159 @@
 
 <style>
   .shell {
+    --ink: #231e17;
+    --yellow: #fcf300;
+    --blue: #058ed9;
+    --white: #ffffff;
+    --red: #ff5b5b;
+
+    --bg: var(--ink);
+    --fg: var(--yellow);
+    --ball-1: var(--yellow);
+    --ball-2: var(--blue);
+
     display: inline-flex;
     align-items: center;
     gap: 14px;
-    padding: 10px 22px 10px 12px;
-    background: #fcf300;
-    border: 2.5px solid #231e17;
+    padding: 16px 22px 16px 14px;
+    background: var(--bg);
+    border: 3px solid var(--fg);
     border-radius: 999px;
-    color: #231e17;
-    font-family: 'Cherry Bomb One', 'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-    font-size: 15px;
+    color: var(--fg);
+    font-family: 'Cherry Bomb One', 'Poppins', system-ui, sans-serif;
+    font-size: 17px;
     font-weight: 400;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
     user-select: none;
     white-space: nowrap;
     box-shadow:
-      4px 4px 0 #231e17,
-      0 12px 30px rgba(35, 30, 23, 0.45);
+      4px 4px 0 var(--fg),
+      0 14px 30px rgba(0, 0, 0, 0.45);
     animation: shellEnter 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
-    transition: background 0.25s ease, color 0.25s ease, transform 0.25s ease;
+    transition:
+      background 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease,
+      box-shadow 0.3s ease;
   }
 
-  .text { display: inline-block; }
+  .text { display: inline-block; line-height: 1; }
 
-  /* ------------ ORB ------------ */
-  .orb {
-    --hot:  #ffffff;
-    --warm: #fcf300;
-    --deep: #c9c200;
-    --time: 1.6s;
-
+  /* ------------ LOADER (two-ball orbit) ------------ */
+  .loader {
     position: relative;
     width: 44px;
-    height: 44px;
-    border-radius: 50%;
+    height: 24px;
     flex: none;
-    background:
-      radial-gradient(
-        circle at 32% 30%,
-        var(--hot) 0%,
-        var(--warm) 35%,
-        var(--deep) 75%,
-        #2a0d05 100%
-      );
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.05),
-      0 0 18px 0 color-mix(in srgb, var(--hot) 50%, transparent),
-      0 8px 24px 0 color-mix(in srgb, var(--deep) 60%, transparent),
-      inset 0 -6px 12px 0 rgba(0, 0, 0, 0.45),
-      inset 0 6px 10px 0 rgba(255, 255, 255, 0.18);
-    animation: breathe var(--time) ease-in-out infinite;
-    transition: background 0.4s ease, box-shadow 0.4s ease;
+    animation: rotate 1.4s linear infinite;
   }
-
-  /* swirling inner blob — gives the lava-lamp feel without SVG mask */
-  .core {
+  .ball {
     position: absolute;
-    inset: 14%;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
-    background:
-      radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--hot) 90%, white 10%) 0%, transparent 55%),
-      radial-gradient(circle at 70% 70%, color-mix(in srgb, var(--deep) 80%, black 10%) 0%, transparent 60%),
-      conic-gradient(from 0deg, var(--hot), var(--warm), var(--deep), var(--warm), var(--hot));
-    filter: blur(2px) saturate(1.2);
-    mix-blend-mode: screen;
-    opacity: 0.9;
-    animation: swirl calc(var(--time) * 1.6) linear infinite;
+    border: 2.5px solid var(--ink);
+    box-sizing: border-box;
   }
-
-  /* glossy specular highlight */
-  .glint {
-    position: absolute;
-    top: 10%;
-    left: 18%;
-    width: 38%;
-    height: 24%;
-    border-radius: 50%;
-    background: radial-gradient(
-      ellipse at center,
-      rgba(255, 255, 255, 0.7) 0%,
-      rgba(255, 255, 255, 0.15) 45%,
-      transparent 70%
-    );
-    filter: blur(1px);
-    pointer-events: none;
+  .ball.a {
+    background: var(--ball-1);
+    animation: orbit-a 1.4s ease-in-out infinite;
+  }
+  .ball.b {
+    background: var(--ball-2);
+    animation: orbit-b 1.4s ease-in-out infinite;
   }
 
   /* ------------ STATES ------------ */
-  /* recording — bright blue pop on yellow, jiggle */
-  .shell.recording { background: #058ed9; color: #fcf300; }
-  .shell.recording .orb {
-    --hot: #ffffff;
-    --warm: #fcf300;
-    --deep: #c9c200;
-    --time: 1.4s;
-    animation:
-      breathe var(--time) ease-in-out infinite,
-      jiggle 0.55s ease-in-out infinite;
-  }
+  .shell.idle .loader { animation-duration: 4s; }
 
-  /* transcribing — yellow with morphing blue blob */
-  .shell.transcribing { background: #fff96b; color: #231e17; }
-  .shell.transcribing .orb {
-    --hot: #5dc1f1;
-    --warm: #058ed9;
-    --deep: #034e76;
-    --time: 1s;
-    animation: morph 1.4s ease-in-out infinite;
+  /* recording — dark bg, yellow + blue balls bounce */
+  .shell.recording {
+    --bg: var(--ink);
+    --fg: var(--yellow);
+    --ball-1: var(--yellow);
+    --ball-2: var(--blue);
   }
-  .shell.transcribing .core {
-    animation: swirl 0.9s linear infinite;
-  }
+  .shell.recording .loader { animation-duration: 1.1s; }
+  .shell.recording .ball.a,
+  .shell.recording .ball.b { animation-duration: 1.1s; }
 
-  /* done — solid yellow, settled */
-  .shell.done { background: #fcf300; color: #231e17; }
-  .shell.done .orb {
-    --hot: #ffffff;
-    --warm: #fcf300;
-    --deep: #c9c200;
-    --time: 2.6s;
-    animation:
-      breathe var(--time) ease-in-out infinite,
-      settle 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* transcribing — yellow bg, ink + blue balls */
+  .shell.transcribing {
+    --bg: var(--yellow);
+    --fg: var(--ink);
+    --ball-1: var(--blue);
+    --ball-2: var(--ink);
   }
+  .shell.transcribing .ball { border-color: var(--ink); }
+  .shell.transcribing .loader { animation-duration: 0.85s; }
+  .shell.transcribing .ball.a,
+  .shell.transcribing .ball.b { animation-duration: 0.85s; }
 
-  /* error — crimson flicker */
-  .shell.error { background: #ff5b5b; color: #fcf300; }
-  .shell.error .orb {
-    --hot: #ffb0b0;
-    --warm: #e23b3b;
-    --deep: #7a0f0f;
-    --time: 0.6s;
-    animation:
-      breathe var(--time) ease-in-out infinite,
-      flicker 0.18s steps(2, end) infinite;
+  /* done — yellow bg, solid + cheerful */
+  .shell.done {
+    --bg: var(--yellow);
+    --fg: var(--ink);
+    --ball-1: var(--ink);
+    --ball-2: var(--blue);
+  }
+  .shell.done .ball { border-color: var(--ink); }
+  .shell.done .loader { animation: settle 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .shell.done .ball.a,
+  .shell.done .ball.b { animation-play-state: paused; }
+
+  /* error — red bg, white loader */
+  .shell.error {
+    --bg: var(--red);
+    --fg: var(--white);
+    --ball-1: var(--white);
+    --ball-2: var(--yellow);
+  }
+  .shell.error .loader {
+    animation: shake 0.4s ease-in-out infinite;
   }
 
   /* ------------ KEYFRAMES ------------ */
-  @keyframes breathe {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.06); }
-  }
-
-  @keyframes jiggle {
-    0%, 100% { translate: 0 0; }
-    25%      { translate: 0.8px -0.5px; }
-    50%      { translate: -0.6px 0.6px; }
-    75%      { translate: 0.5px 0.7px; }
-  }
-
-  @keyframes swirl {
-    0%   { transform: rotate(0deg); }
+  @keyframes rotate {
+    0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
   }
 
-  @keyframes morph {
-    0%, 100% { border-radius: 50%; transform: scale(1) rotate(0deg); }
-    25%      { border-radius: 42% 58% 55% 45% / 50% 45% 55% 50%; transform: scale(1.05) rotate(8deg); }
-    50%      { border-radius: 60% 40% 45% 55% / 55% 60% 40% 45%; transform: scale(0.96) rotate(-4deg); }
-    75%      { border-radius: 45% 55% 60% 40% / 40% 50% 50% 60%; transform: scale(1.04) rotate(6deg); }
+  /* ball A: top-left → bottom-right → top-left */
+  @keyframes orbit-a {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    50% {
+      transform: translate(26px, 6px) scale(0.85);
+    }
+  }
+  /* ball B: bottom-right → top-left → bottom-right (offset start) */
+  @keyframes orbit-b {
+    0%, 100% {
+      transform: translate(26px, 6px) scale(1);
+    }
+    50% {
+      transform: translate(0, 0) scale(0.85);
+    }
   }
 
   @keyframes settle {
-    0%   { transform: scale(0.85); }
-    60%  { transform: scale(1.1); }
-    100% { transform: scale(1); }
+    0%   { transform: rotate(0deg) scale(0.8); }
+    60%  { transform: rotate(180deg) scale(1.15); }
+    100% { transform: rotate(180deg) scale(1); }
   }
 
-  @keyframes flicker {
-    0%, 100% { transform: translate(0, 0); }
-    50%      { transform: translate(0.8px, -0.8px); }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    25% { transform: translateX(-2px) rotate(-4deg); }
+    75% { transform: translateX(2px) rotate(4deg); }
   }
 
   @keyframes shellEnter {
-    from { opacity: 0; transform: translateY(8px) scale(0.94); }
+    from { opacity: 0; transform: translateY(8px) scale(0.92); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 </style>

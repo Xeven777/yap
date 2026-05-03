@@ -50,6 +50,8 @@
   let language = $state("");
   let hotkey = $state("Ctrl+Shift+Space");
   let activeHotkey = $state("");
+  let hotkeyMode = $state<"toggle" | "hold">("toggle");
+  let activeHotkeyMode = $state<"toggle" | "hold">("toggle");
   let showSettings = $state(false);
   let errorMsg = $state("");
 
@@ -78,14 +80,26 @@
   });
 
   let statusSubtitle = $derived<Record<Status, string>>({
-    idle: `Press ${activeHotkey || hotkey} to start`,
-    recording: "Press the hotkey again to stop",
+    idle: activeHotkeyMode === "hold"
+      ? `Hold ${activeHotkey || hotkey} to talk`
+      : `Press ${activeHotkey || hotkey} to start`,
+    recording: activeHotkeyMode === "hold"
+      ? "Release the hotkey to stop"
+      : "Press the hotkey again to stop",
     transcribing: "Just a moment…",
     done: "Pasted into the focused field",
     error: errorMsg || "Try again",
   });
 
   async function shortcutHandler(event: { state: string }) {
+    if (activeHotkeyMode === "hold") {
+      if (event.state === "Pressed" && status === "idle") {
+        await startRecording();
+      } else if (event.state === "Released" && status === "recording") {
+        await stopRecording();
+      }
+      return;
+    }
     if (event.state !== "Pressed") return;
     if (status === "idle") await startRecording();
     else if (status === "recording") await stopRecording();
@@ -100,6 +114,8 @@
     apiKey = await invoke<string>("get_api_key");
     language = await invoke<string>("get_language");
     hotkey = await invoke<string>("get_hotkey");
+    hotkeyMode = (await invoke<string>("get_hotkey_mode")) as "toggle" | "hold";
+    activeHotkeyMode = hotkeyMode;
     backend = await invoke<string>("get_backend");
     activeModel = await invoke<string>("get_active_model");
     await loadModels();
@@ -177,16 +193,30 @@
 
   async function saveSettings() {
     if (hotkey !== activeHotkey) {
+      const prev = activeHotkey;
       try {
-        if (activeHotkey) await unregister(activeHotkey);
+        if (prev) await unregister(prev).catch(() => {});
         await register(hotkey, shortcutHandler);
         await invoke("save_hotkey", { hotkey });
         activeHotkey = hotkey;
       } catch (e) {
-        errorMsg = `'${hotkey}' not recognised — reverted.`;
+        // restore previous registration so the app keeps working
+        if (prev) {
+          try {
+            await register(prev, shortcutHandler);
+            activeHotkey = prev;
+          } catch {
+            activeHotkey = "";
+          }
+        }
+        errorMsg = `'${hotkey}' not recognised (${e}) — reverted.`;
         hotkey = activeHotkey;
         return;
       }
+    }
+    if (hotkeyMode !== activeHotkeyMode) {
+      await invoke("save_hotkey_mode", { mode: hotkeyMode });
+      activeHotkeyMode = hotkeyMode;
     }
     await invoke("save_api_key", { key: apiKey });
     await invoke("save_language", { language });
@@ -235,7 +265,41 @@
   function formatHotkey(s: string): string[] {
     return s.split("+").map((p) => p.trim()).filter(Boolean);
   }
+
+  let capturingHotkey = $state(false);
+
+  function captureKeydown(e: KeyboardEvent) {
+    if (!capturingHotkey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      capturingHotkey = false;
+      return;
+    }
+    const parts: string[] = [];
+    if (e.ctrlKey) parts.push("Ctrl");
+    if (e.altKey) parts.push("Alt");
+    if (e.shiftKey) parts.push("Shift");
+    if (e.metaKey) parts.push("Super");
+    const k = e.key;
+    // Ignore pure modifier presses — wait for a real key
+    if (["Control", "Alt", "Shift", "Meta", "OS"].includes(k)) return;
+    let main: string;
+    if (k === " ") main = "Space";
+    else if (k.length === 1) main = k.toUpperCase();
+    else main = k.charAt(0).toUpperCase() + k.slice(1); // Enter, Tab, F1, ArrowUp…
+    parts.push(main);
+    hotkey = parts.join("+");
+    capturingHotkey = false;
+  }
+
+  function startCapture() {
+    errorMsg = "";
+    capturingHotkey = true;
+  }
 </script>
+
+<svelte:window on:keydown={captureKeydown} />
 
 <main>
   <header class="topbar">
@@ -491,13 +555,48 @@
           <span class="block-title"><Keyboard size={12} strokeWidth={2.2} /> Hotkey</span>
           <span class="block-hint">Global shortcut</span>
         </div>
-        <input
-          type="text"
-          bind:value={hotkey}
-          placeholder="Ctrl+Shift+Space"
-          class="input"
-        />
+        <button
+          type="button"
+          class="input hotkey-capture"
+          class:is-capturing={capturingHotkey}
+          onclick={startCapture}
+          title="Click, then press your shortcut"
+        >
+          {#if capturingHotkey}
+            <span class="hotkey-prompt">Press your combination... (Esc to cancel)</span>
+          {:else}
+            <span class="kbd-row" style="margin: 0;">
+              {#each formatHotkey(hotkey) as key, i}
+                {#if i > 0}<span class="kbd-plus">+</span>{/if}
+                <kbd>{key}</kbd>
+              {/each}
+            </span>
+          {/if}
+        </button>
+        <div class="segmented" style="margin-top: 10px;">
+          <button
+            class="seg-btn {hotkeyMode === 'toggle' ? 'is-active' : ''}"
+            onclick={() => (hotkeyMode = "toggle")}
+          >
+            <span>Tap</span>
+            <em>press to start / stop</em>
+          </button>
+          <button
+            class="seg-btn {hotkeyMode === 'hold' ? 'is-active' : ''}"
+            onclick={() => (hotkeyMode = "hold")}
+          >
+            <span>Hold</span>
+            <em>push-to-talk</em>
+          </button>
+        </div>
       </div>
+
+      {#if errorMsg}
+        <div class="err">
+          <CircleAlert size={13} strokeWidth={2.2} />
+          <span>{errorMsg}</span>
+        </div>
+      {/if}
 
       <div class="settings-actions">
         <button class="btn btn-secondary" onclick={() => (showSettings = false)}>Cancel</button>
@@ -1020,6 +1119,27 @@
     border-color: var(--blue);
   }
   .input::placeholder { color: var(--ink); opacity: 0.35; font-weight: 500; }
+
+  .hotkey-capture {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    text-align: center;
+    min-height: 48px;
+  }
+  .hotkey-capture.is-capturing {
+    border-color: var(--blue);
+    box-shadow: 4px 4px 0 var(--blue);
+    transform: translate(-1px, -1px);
+  }
+  .hotkey-prompt {
+    color: var(--ink);
+    opacity: 0.75;
+    font-weight: 600;
+    font-size: 13px;
+  }
 
   /* Model cards */
   .model-list {

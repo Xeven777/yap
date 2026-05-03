@@ -273,6 +273,18 @@ pub fn save_hotkey(app: AppHandle, hotkey: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+pub fn get_hotkey_mode(app: AppHandle) -> String {
+    let v = config_read(&app, "hotkey_mode.txt").unwrap_or_else(|| "toggle".to_string());
+    if v == "hold" { "hold".into() } else { "toggle".into() }
+}
+
+#[tauri::command]
+pub fn save_hotkey_mode(app: AppHandle, mode: String) -> Result<(), String> {
+    let normalized = if mode == "hold" { "hold" } else { "toggle" };
+    config_write(&app, "hotkey_mode.txt", normalized)
+}
+
+#[tauri::command]
 pub fn get_language(app: AppHandle) -> String {
     config_read(&app, "language.txt").unwrap_or_default()
 }

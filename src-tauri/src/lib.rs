@@ -71,6 +71,8 @@ pub fn run() {
             commands::paste_text,
             commands::get_hotkey,
             commands::save_hotkey,
+            commands::get_hotkey_mode,
+            commands::save_hotkey_mode,
             commands::get_language,
             commands::save_language,
             commands::get_backend,
