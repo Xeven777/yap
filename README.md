@@ -8,6 +8,26 @@ Built with Tauri 2 + Rust + Svelte.
 
 ---
 
+## Download
+
+Pre-built installers for every release are published on the [GitHub Releases page](https://github.com/Xeven777/yap/releases):
+
+| Platform | File |
+|----------|------|
+| Linux (Debian/Ubuntu) | `.deb` |
+| Linux (any distro) | `.AppImage` |
+| Windows | `.msi` or `.exe` (NSIS installer) |
+| macOS — Apple Silicon | `.dmg` (`aarch64`) |
+| macOS — Intel | `.dmg` (`x86_64`) |
+
+> **macOS first launch:** the build is unsigned, so Gatekeeper will refuse to open it. After dragging Yap into `/Applications`, right-click the app → **Open** → confirm the warning. You only need to do this once. (Or run `xattr -cr /Applications/Yap.app`.)
+
+> **Windows first launch:** SmartScreen may show "Windows protected your PC" — click **More info** → **Run anyway**.
+
+If you'd rather build from source, see [Setup & run](#setup--run) below.
+
+---
+
 ## How it works
 
 ```
@@ -211,6 +231,26 @@ Tauri does not support cross-compilation out of the box — build on the target 
 - Linux: Ubuntu 22.04+ runner
 - Windows: `windows-latest` runner
 - macOS: `macos-latest` runner (arm64) or `macos-13` (x86_64)
+
+### Cutting a release
+
+A GitHub Actions workflow at [`.github/workflows/release.yml`](.github/workflows/release.yml) builds installers for **Linux**, **Windows**, **macOS (Apple Silicon)**, and **macOS (Intel)** in parallel and uploads them to a GitHub Release.
+
+To publish a new version:
+
+```bash
+# 1. Bump the version in package.json AND src-tauri/tauri.conf.json AND src-tauri/Cargo.toml
+# 2. Commit and tag
+git commit -am "Release v0.2.0"
+git tag v0.2.0
+git push origin main --tags
+```
+
+The workflow runs automatically on any tag matching `v*`. It creates a **draft** release — review the artifacts on GitHub, then click **Publish release** to make it visible.
+
+You can also trigger the workflow manually via **Actions → Release → Run workflow** (useful for testing without cutting a real version).
+
+> Builds are unsigned. macOS / Windows users will see a Gatekeeper / SmartScreen warning the first time they run the app. To distribute signed builds, add `APPLE_*` and `WINDOWS_CERTIFICATE` secrets per the [tauri-action docs](https://github.com/tauri-apps/tauri-action#code-signing).
 
 ---
 
