@@ -25,8 +25,8 @@ pub fn run() {
             if let Some(pill) = app.get_webview_window("pill") {
                 if let Ok(Some(monitor)) = app.primary_monitor() {
                     let sz = monitor.size();
-                    let x = sz.width as i32 / 2 - 150;
-                    let y = sz.height as i32 - 100;
+                    let x = sz.width as i32 / 2 - 130;
+                    let y = sz.height as i32 - 160;
                     pill.set_position(PhysicalPosition::new(x, y)).ok();
                 }
             }
