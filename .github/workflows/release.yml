@@ -14,17 +14,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: macos-latest
-            args: "--target aarch64-apple-darwin"
-            name: macOS (Apple Silicon)
-          - platform: macos-latest
-            args: "--target x86_64-apple-darwin"
-            name: macOS (Intel)
           - platform: ubuntu-22.04
-            args: ""
+            args: "--bundles deb,appimage,rpm"
             name: Linux
           - platform: windows-latest
-            args: ""
+            args: "--bundles msi,nsis"
             name: Windows
 
     runs-on: ${{ matrix.platform }}
@@ -41,13 +35,11 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: "pnpm"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Cache Cargo
         uses: swatinem/rust-cache@v2
@@ -83,11 +75,10 @@ jobs:
           releaseBody: |
             See the assets below to download a build for your platform.
 
-            **Linux:** `.deb` (Debian/Ubuntu) or `.AppImage` (any distro)
+            **Linux:** `.deb` (Debian/Ubuntu), `.rpm` (Fedora/RHEL), or `.AppImage` (any distro)
             **Windows:** `.msi` installer or `.exe` (NSIS)
-            **macOS:** `.dmg` — Apple Silicon (`aarch64`) and Intel (`x86_64`) builds available
 
-            > macOS users: this build is unsigned. After dragging Yap to Applications, right-click → Open the first time, then click "Open" in the warning dialog. (Or run `xattr -cr /Applications/Yap.app` in Terminal.)
+            > Windows users: this build is unsigned. SmartScreen may show a warning — click **More info** → **Run anyway**.
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

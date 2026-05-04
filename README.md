@@ -15,12 +15,11 @@ Pre-built installers for every release are published on the [GitHub Releases pag
 | Platform | File |
 |----------|------|
 | Linux (Debian/Ubuntu) | `.deb` |
+| Linux (Fedora/RHEL) | `.rpm` |
 | Linux (any distro) | `.AppImage` |
 | Windows | `.msi` or `.exe` (NSIS installer) |
-| macOS — Apple Silicon | `.dmg` (`aarch64`) |
-| macOS — Intel | `.dmg` (`x86_64`) |
 
-> **macOS first launch:** the build is unsigned, so Gatekeeper will refuse to open it. After dragging Yap into `/Applications`, right-click the app → **Open** → confirm the warning. You only need to do this once. (Or run `xattr -cr /Applications/Yap.app`.)
+> **macOS:** not currently distributed via Releases. Build from source (see [Setup & run](#setup--run)).
 
 > **Windows first launch:** SmartScreen may show "Windows protected your PC" — click **More info** → **Run anyway**.
 
@@ -234,7 +233,7 @@ Tauri does not support cross-compilation out of the box — build on the target 
 
 ### Cutting a release
 
-A GitHub Actions workflow at [`.github/workflows/release.yml`](.github/workflows/release.yml) builds installers for **Linux**, **Windows**, **macOS (Apple Silicon)**, and **macOS (Intel)** in parallel and uploads them to a GitHub Release.
+A GitHub Actions workflow at [`.github/workflows/release.yml`](.github/workflows/release.yml) builds installers for **Linux** and **Windows** in parallel and uploads them to a GitHub Release. (macOS builds are currently disabled — build locally if needed.)
 
 To publish a new version:
 
