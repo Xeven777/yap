@@ -198,7 +198,9 @@ pub async fn stop_recording(
     language: Option<String>,
     backend: String,
     model_id: Option<String>,
+    cleanup: Option<bool>,
 ) -> Result<String, String> {
+    let cleanup = cleanup.unwrap_or(false);
     eprintln!("[yap] stop_recording called (backend={backend})");
     *state.is_recording.lock().unwrap() = false;
     *state.stream.lock().unwrap() = None;
@@ -225,20 +227,32 @@ pub async fn stop_recording(
     let resampled = resample_to_16k(trimmed, capture_rate);
     eprintln!("[yap] resampled: {} samples @ 16kHz", resampled.len());
 
-    if backend == "local" {
-        return transcribe_local(
+    let raw_text = if backend == "local" {
+        transcribe_local(
             &app,
             &whisper,
             &resampled,
             language.as_deref(),
             model_id.as_deref(),
         )
-        .await;
-    }
+        .await?
+    } else {
+        let wav_path = write_wav(&resampled)?;
+        transcribe(&http.0, &wav_path, &api_key, language.as_deref()).await?
+    };
 
-    // Groq path
-    let wav_path = write_wav(&resampled)?;
-    transcribe(&http.0, &wav_path, &api_key, language.as_deref()).await
+    if cleanup && !api_key.is_empty() && !raw_text.is_empty() {
+        match cleanup_text(&http.0, &raw_text, &api_key).await {
+            Ok(polished) if !polished.is_empty() => Ok(polished),
+            Ok(_) => Ok(raw_text),
+            Err(e) => {
+                eprintln!("[yap] cleanup failed, returning raw transcript: {e}");
+                Ok(raw_text)
+            }
+        }
+    } else {
+        Ok(raw_text)
+    }
 }
 
 #[tauri::command]
@@ -313,6 +327,18 @@ pub fn get_active_model(app: AppHandle) -> String {
 #[tauri::command]
 pub fn save_active_model(app: AppHandle, model_id: String) -> Result<(), String> {
     config_write(&app, "active_model.txt", &model_id)
+}
+
+#[tauri::command]
+pub fn get_cleanup_enabled(app: AppHandle) -> bool {
+    config_read(&app, "cleanup.txt")
+        .map(|s| s == "true")
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+pub fn save_cleanup_enabled(app: AppHandle, enabled: bool) -> Result<(), String> {
+    config_write(&app, "cleanup.txt", if enabled { "true" } else { "false" })
 }
 
 #[tauri::command]
@@ -612,6 +638,56 @@ async fn transcribe(
     json["text"]
         .as_str()
         .map(|s| s.trim().to_string())
+        .ok_or_else(|| format!("Unexpected Groq response: {json}"))
+}
+
+const CLEANUP_SYSTEM_PROMPT: &str = "You polish raw voice-to-text transcripts.\n\
+Rules:\n\
+- Remove filler words (um, uh, like, you know, sort of, basically, I mean, so yeah).\n\
+- Fix typos, mishearings, and obvious speech recognition errors using context.\n\
+- Add correct punctuation, capitalization, and paragraph breaks.\n\
+- Tighten rambling phrasing while preserving the speaker's meaning, voice, and intent.\n\
+- Do NOT add information, opinions, greetings, or commentary.\n\
+- Do NOT translate. Keep the original language.\n\
+- Output ONLY the cleaned text. No preamble, no quotes, no explanations.";
+
+async fn cleanup_text(
+    client: &reqwest::Client,
+    text: &str,
+    api_key: &str,
+) -> Result<String, String> {
+    let body = serde_json::json!({
+        "model": "llama-3.3-70b-versatile",
+        "temperature": 0.2,
+        "messages": [
+            {"role": "system", "content": CLEANUP_SYSTEM_PROMPT},
+            {"role": "user", "content": text}
+        ]
+    });
+
+    let res = client
+        .post("https://api.groq.com/openai/v1/chat/completions")
+        .bearer_auth(api_key)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status = res.status();
+    let json: serde_json::Value = res.json().await.map_err(|e| e.to_string())?;
+
+    if !status.is_success() {
+        return Err(format!(
+            "Groq cleanup error {status}: {}",
+            json["error"]["message"]
+                .as_str()
+                .unwrap_or(&json.to_string())
+        ));
+    }
+
+    json["choices"][0]["message"]["content"]
+        .as_str()
+        .map(|s| s.trim().trim_matches('"').to_string())
         .ok_or_else(|| format!("Unexpected Groq response: {json}"))
 }
 

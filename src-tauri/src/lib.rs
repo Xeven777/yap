@@ -79,6 +79,8 @@ pub fn run() {
             commands::save_backend,
             commands::get_active_model,
             commands::save_active_model,
+            commands::get_cleanup_enabled,
+            commands::save_cleanup_enabled,
             commands::list_models,
             commands::download_model,
             commands::cancel_download,

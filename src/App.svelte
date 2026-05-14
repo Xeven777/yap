@@ -15,6 +15,7 @@
     Keyboard,
     KeyRound,
     Sparkles,
+    Wand2,
     Download,
     Trash2,
     X,
@@ -56,6 +57,7 @@
   let errorMsg = $state("");
 
   let backend = $state("groq");
+  let cleanupEnabled = $state(false);
   let activeModel = $state("ggml-large-v3-turbo-q5_0");
   let models: ModelStatus[] = $state([]);
   let downloadingModelId = $state<string | null>(null);
@@ -74,7 +76,9 @@
   let statusLabel = $derived<Record<Status, string>>({
     idle: "Ready",
     recording: "Recording",
-    transcribing: backend === "local" ? "Transcribing locally" : "Transcribing",
+    transcribing: cleanupEnabled && apiKey
+      ? "Transcribing & polishing"
+      : (backend === "local" ? "Transcribing locally" : "Transcribing"),
     done: "Copied to clipboard",
     error: "Something went wrong",
   });
@@ -118,6 +122,7 @@
     activeHotkeyMode = hotkeyMode;
     backend = await invoke<string>("get_backend");
     activeModel = await invoke<string>("get_active_model");
+    cleanupEnabled = await invoke<boolean>("get_cleanup_enabled");
     await loadModels();
 
     try {
@@ -176,6 +181,7 @@
         language: language || null,
         backend,
         modelId: activeModel,
+        cleanup: cleanupEnabled && !!apiKey,
       });
       status = "done";
       await writeText(transcript);
@@ -222,6 +228,7 @@
     await invoke("save_language", { language });
     await invoke("save_backend", { backend });
     await invoke("save_active_model", { modelId: activeModel });
+    await invoke("save_cleanup_enabled", { enabled: cleanupEnabled });
     showSettings = false;
   }
 
@@ -393,7 +400,12 @@
       <div class="transcript">
         <div class="transcript-head">
           <span class="transcript-label">Last transcript</span>
-          <span class="transcript-meta">{transcript.length} chars</span>
+          <div class="transcript-tags">
+            {#if cleanupEnabled && apiKey}
+              <span class="transcript-badge"><Wand2 size={10} strokeWidth={2.4} /> Polished</span>
+            {/if}
+            <span class="transcript-meta">{transcript.length} chars</span>
+          </div>
         </div>
         <div class="transcript-body">{transcript}</div>
       </div>
@@ -548,6 +560,35 @@
           maxlength="5"
           class="input"
         />
+      </div>
+
+      <div class="setting-block">
+        <div class="block-head">
+          <span class="block-title"><Wand2 size={12} strokeWidth={2.2} /> Smart cleanup</span>
+          <span class="block-hint">Polish transcripts with AI</span>
+        </div>
+        <button
+          type="button"
+          class="cleanup-toggle"
+          class:is-on={cleanupEnabled}
+          onclick={() => (cleanupEnabled = !cleanupEnabled)}
+          disabled={!apiKey}
+          title={apiKey ? "Toggle smart cleanup" : "Add a Groq API key to enable cleanup"}
+        >
+          <div class="cleanup-toggle-text">
+            <span class="cleanup-toggle-title">
+              {cleanupEnabled ? "On — fillers stripped, formatted" : "Off — raw transcript"}
+            </span>
+            <span class="cleanup-toggle-sub">
+              {apiKey
+                ? "Removes um/uh/like, fixes typos, adds punctuation."
+                : "Requires a Groq API key (uses llama-3.3-70b)."}
+            </span>
+          </div>
+          <span class="switch" aria-hidden="true">
+            <span class="switch-knob"></span>
+          </span>
+        </button>
       </div>
 
       <div class="setting-block">
@@ -995,6 +1036,82 @@
     white-space: pre-wrap;
     word-break: break-word;
   }
+
+  /* ---------- Cleanup toggle ---------- */
+  .cleanup-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    width: 100%;
+    padding: 14px 16px;
+    background: white;
+    border: 2.5px solid var(--ink);
+    border-radius: 13px;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    box-shadow: 3px 3px 0 var(--ink);
+    transition: transform 0.18s var(--bounce), box-shadow 0.18s var(--bounce), background 0.2s;
+  }
+  .cleanup-toggle:hover:not(:disabled) {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 var(--ink);
+  }
+  .cleanup-toggle:disabled { opacity: 0.55; cursor: not-allowed; }
+  .cleanup-toggle.is-on {
+    background: var(--blue);
+    color: white;
+  }
+  .cleanup-toggle-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .cleanup-toggle-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: inherit;
+  }
+  .cleanup-toggle.is-on .cleanup-toggle-title { color: white; }
+  .cleanup-toggle:not(.is-on) .cleanup-toggle-title { color: var(--ink); }
+  .cleanup-toggle-sub {
+    font-size: 11.5px;
+    font-weight: 600;
+    opacity: 0.7;
+    color: inherit;
+  }
+  .switch {
+    flex-shrink: 0;
+    position: relative;
+    width: 44px; height: 26px;
+    border: 2.5px solid var(--ink);
+    border-radius: 99px;
+    background: var(--warm-soft);
+    transition: background 0.2s;
+  }
+  .cleanup-toggle.is-on .switch { background: var(--yellow); border-color: var(--ink); }
+  .switch-knob {
+    position: absolute;
+    top: 1.5px; left: 1.5px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--ink);
+    transition: transform 0.22s var(--bounce);
+  }
+  .cleanup-toggle.is-on .switch-knob { transform: translateX(18px); }
+
+  /* Transcript polish badge */
+  .transcript-tags { display: flex; align-items: center; gap: 6px; }
+  .transcript-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px;
+    font-weight: 800;
+    color: white;
+    background: var(--ink);
+    border: 2px solid var(--ink);
+    padding: 3px 9px;
+    border-radius: 99px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .transcript-badge :global(svg) { width: 11px; height: 11px; }
 
   /* ---------- Settings ---------- */
   .settings {
